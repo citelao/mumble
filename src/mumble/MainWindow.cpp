@@ -61,6 +61,7 @@
 
 #ifdef Q_OS_WIN
 #	include "TaskList.h"
+#   include "UniversalMute.h"
 #endif
 
 #ifdef Q_OS_MAC
@@ -177,6 +178,19 @@ MainWindow::MainWindow(QWidget *p)
 	// Tray
 	connect(qstiIcon, SIGNAL(messageClicked()), this, SLOT(showRaiseWindow()));
 	connect(qaShow, SIGNAL(triggered()), this, SLOT(showRaiseWindow()));
+
+#ifdef Q_OS_WIN
+	// TODO: handlers
+	const auto onMute = [this]() -> {
+		qaAudioMute->setChecked(true);
+		this->on_qaAudioMute_triggered();
+	};
+	const auto onUnmute = [this]() -> {
+		qaAudioMute->setChecked(false);
+		this->on_qaAudioMute_triggered();
+	};
+	m_universalMuter = UniversalMuter(1, 2);
+#endif
 
 	QObject::connect(this, &MainWindow::transmissionModeChanged, this, &MainWindow::updateTransmitModeComboBox);
 
@@ -3316,6 +3330,8 @@ void MainWindow::serverConnected() {
 
 #ifdef Q_OS_WIN
 	TaskList::addToRecentList(Global::get().s.qsLastServer, uname, host, port);
+
+	m_universalMuter.startCall();
 #endif
 
 	qdwMinimalViewNote->hide();
@@ -3338,6 +3354,10 @@ void MainWindow::serverDisconnected(QAbstractSocket::SocketError err, QString re
 #ifdef Q_OS_MAC
 	// Remove App Nap suppression now that we're disconnected.
 	MUSuppressAppNap(false);
+#endif
+
+#ifdef Q_OS_WIN
+	m_universalMuter.tryEndCall();
 #endif
 
 	QString uname, pw, host;

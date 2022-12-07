@@ -170,7 +170,12 @@ void MainWindow::msgServerSync(const MumbleProto::ServerSync &msg) {
 	connect(user, SIGNAL(prioritySpeakerStateChanged()), this, SLOT(userStateChanged()));
 	connect(user, SIGNAL(recordingStateChanged()), this, SLOT(userStateChanged()));
 
-	qstiIcon->setToolTip(tr("Mumble: %1").arg(Channel::get(Channel::ROOT_ID)->qsName.toHtmlEscaped()));
+	QString channelName = Channel::get(Channel::ROOT_ID)->qsName.toHtmlEscaped();
+	qstiIcon->setToolTip(tr("Mumble: %1").arg(channelName));
+
+#ifdef Q_OS_WIN
+	m_universalMuter.trySetCallName(channelName);
+#endif
 
 	// Update QActions and menus
 	on_qmServer_aboutToShow();

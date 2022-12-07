@@ -572,6 +572,7 @@ if(WIN32)
 		"Log_win.cpp"
 		"SharedMemory_win.cpp"
 		"TaskList.cpp"
+		"UniversalMute.cpp"
 		"UserLockFile_win.cpp"
 		"WinGUIDs.cpp"
 		"os_early_win.cpp"

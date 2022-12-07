@@ -185,6 +185,10 @@ protected:
 	qt_unique_ptr< UserLocalVolumeSlider > m_userLocalVolumeSlider;
 	qt_unique_ptr< ListenerVolumeSlider > m_listenerVolumeSlider;
 
+#ifdef Q_OS_WIN
+	UniversalMuter m_universalMuter;
+#endif
+
 	void createActions();
 	void setupGui();
 	void updateWindowTitle();
