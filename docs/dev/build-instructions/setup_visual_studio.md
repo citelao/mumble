@@ -6,3 +6,8 @@ Either can be downloaded [here](https://visualstudio.microsoft.com/downloads) (A
 Make sure to select the **C++ build tools** (or Development, respectively) and "**C++ MFC for latest v14[X] build tools**" (just pick the latest
 version - e.g.v142). vcpkg also requires the **English Language pack** which is found in the Language packs section of the Visual Studio Installer.
 
+## Building on Windows
+
+If you're using Visual Studio on Windows, you'll probably need other See [Building on Windows]()
+
+RELEASE mode.

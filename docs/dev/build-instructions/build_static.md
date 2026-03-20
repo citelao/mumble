@@ -10,7 +10,7 @@ We are using [vcpkg](https://github.com/Microsoft/vcpkg) in order to manage the 
 on all major platforms (Windows, Linux, macOS, probably more), so the instructions here apply to all of these systems.
 In order to ensure maximum reproducibility, we host our own fork of vcpkg at https://github.com/mumble-voip/vcpkg that contains vcpkg packages at the
 exact state that have been used by us to build Mumble. There are also [pre-built environments](https://github.com/mumble-voip/vcpkg/releases)
-available there.
+available there, which you can use in lieu of using vcpkg yourself.
 
 The entire build environment will require between 30GB and 60GB of space on your hard-drive. If installed via script, it tends to converge towards the
 lower bound whereas a manual installation usually tends towards the higher bound.
@@ -33,7 +33,6 @@ running the mentioned script. On Linux and macOS no such preliminaries are neces
 If you already have vcpkg installed on your system, you should probably prefer using the manual installation of dependencies in order to avoid a
 second vcpkg installation.
 
-
 ### Manual installation
 
 Again, we advice to use our vcpkg fork. If you are using upstream vcpkg, you do not have access to a compatible version of ZeroC Ice, so you'll have
@@ -54,6 +53,20 @@ package you want to install and `<triplet>` is the desired target triplet. We re
 
 Therefore if you are on Windows, you'd install `boost` as `vcpkg install boost --triplet x64-windows-static-md`.
 
+### Using pre-built environments
+
+For common configurations, you can use the [pre-built vcpkg environments](https://github.com/mumble-voip/vcpkg/releases) mentioned above instead of using the script or manually installing the files.
+
+1. Download & unzip the appropriate environment.
+2. When using the `cmake` commands below, use the unzipped folder as `<vcpkg dir>` in the `-DCMAKE_TOOLCHAIN_FILE` argument. Use the corresponding triplet for `-DVCPKG_TARGET_TRIPLET`.
+
+For example, on Windows:
+
+```
+cmake "-DVCPKG_TARGET_TRIPLET=x64-windows-static-md" "-DCMAKE_TOOLCHAIN_FILE=C:\Users\Me\Downloads\mumble_env.x64-windows-static-md.127cccc01d\mumble_env.x64-windows-static-md.127cccc01d/scripts/buildsystems/vcpkg.cmake" "-Dstatic=ON" "-DCMAKE_BUILD_TYPE=Release" ..
+```
+
+If you ran previous builds that failed with missing dependencies, you may need to delete & recreate your `build/` directory before using the new toolchain (or CMake will continue to struggle finding dependencies).
 
 ### Additional dependencies on Linux
 
@@ -174,11 +187,9 @@ cmake -G "NMake Makefiles" "-DVCPKG_TARGET_TRIPLET=x64-windows-static-md" "-Dsta
 Optionally you can use `-G "Ninja"` to use the [Ninja buildsystem](https://ninja-build.org/) (which probably has to be installed separately).
 Especially on Windows this is recommended as the default `NMake Makefiles` only compile using a single thread (which takes quite a while).
 
-
 ### Customizing the build
 
 There are various options that can be passed to cmake when performing step 6 from above. See [here](cmake_options.md) for details.
-
 
 ## Troubleshooting
 

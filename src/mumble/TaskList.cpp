@@ -24,7 +24,22 @@
 #include <propvarutil.h>
 // clang-format on
 
+#include <winrt/windows.applicationmodel.calls.h>
+
 extern bool bIsWin7;
+
+namespace {
+void test()
+{
+	const auto coordinator = winrt::Windows::ApplicationModel::Calls::VoipCallCoordinator::GetDefault();
+	const auto call =
+		coordinator.RequestNewOutgoingCall(L"context_link", L"contact_name", L"Mumble",
+										   winrt::Windows::ApplicationModel::Calls::VoipPhoneCallMedia::Audio);
+	call.NotifyCallActive();
+	//coordinator.NotifyMuted();
+	call.NotifyCallEnded();
+}
+}
 
 void TaskList::addToRecentList(QString name, QString user, QString host, int port) {
 	if (!bIsWin7)
