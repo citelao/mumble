@@ -72,6 +72,9 @@ cmake -G Ninja "-DVCPKG_TARGET_TRIPLET=x64-windows-static-md" "-Dstatic=ON" "-DC
 
 (Replace `<hash>` with the commit hash in the filename, e.g. `b1fe4a4257`.)
 
+> [!NOTE]
+> The `-Dbundled-cli11=OFF -Dbundled-spdlog=OFF` flags are required when using pre-built environments from after 2026-02. Without these flags, linker errors for unresolved CLI11/spdlog/fmt symbols will occur. See [common build errors](common_build_errors.md) for details.
+
 If you ran previous builds that failed with missing dependencies, you may need to delete and recreate your `build/` directory before using the new
 toolchain, or CMake will continue to struggle finding dependencies.
 
@@ -188,8 +191,9 @@ cmake "-DVCPKG_TARGET_TRIPLET=x64-osx" "-Dstatic=ON" "-DCMAKE_TOOLCHAIN_FILE=<vc
 
 For Windows the command may be
 
-```bash
-cmake -G "NMake Makefiles" "-DVCPKG_TARGET_TRIPLET=x64-windows-static-md" "-Dstatic=ON" "-DCMAKE_TOOLCHAIN_FILE=<vcpkg_root>/scripts/buildsystems/vcpkg.cmake" "-DIce_HOME=<vcpkg_root>/installed/x64-windows-static-md" "-DCMAKE_BUILD_TYPE=Release" ..
+```powershell
+# Uses `-G Ninja`, which is much faster than the default. Requires separate install.
+cmake -G Ninja "-DVCPKG_TARGET_TRIPLET=x64-windows-static-md" "-Dstatic=ON" "-DCMAKE_TOOLCHAIN_FILE=<vcpkg_root>/scripts/buildsystems/vcpkg.cmake" "-DIce_HOME=<vcpkg_root>/installed/x64-windows-static-md" "-DCMAKE_BUILD_TYPE=Release" -Dbundled-cli11=OFF -Dbundled-spdlog=OFF ..
 ```
 
 Optionally you can use `-G "Ninja"` to use the [Ninja buildsystem](https://ninja-build.org/) (which probably has to be installed separately).
