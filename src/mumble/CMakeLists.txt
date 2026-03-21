@@ -657,6 +657,21 @@ if(WIN32)
 			hid.lib
 			wintrust.lib
 	)
+
+	if(MSVC)
+		option(win-universal-mute "Build support for Windows Universal Mute (Windows 11 22H2+)." ON)
+		if(win-universal-mute)
+			target_sources(mumble_client_object_lib PRIVATE
+				"UniversalMute.cpp"
+				"UniversalMute.h"
+			)
+			target_compile_definitions(mumble_client_object_lib PUBLIC "USE_WIN_UNIVERSAL_MUTE")
+			target_link_libraries(mumble_client_object_lib PUBLIC WindowsApp.lib)
+			# UniversalMute.cpp must not be included in unity builds — it has no Qt headers
+			# and mixes winrt includes that cause _COROUTINE_ABI conflicts in combined TUs.
+			set_source_files_properties("UniversalMute.cpp" PROPERTIES SKIP_UNITY_BUILD_INCLUSION TRUE)
+		endif()
+	endif()
 else()
 	target_sources(mumble_client_object_lib PRIVATE "SharedMemory_unix.cpp")
 
