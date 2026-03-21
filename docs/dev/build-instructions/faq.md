@@ -29,6 +29,25 @@ cmake -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
 ```
 
 
+### CMake cannot find `CompilerFlags`
+
+When running the initial `cmake` commands, if you get this error:
+
+```
+CMake Error at cmake/compiler.cmake:6 (include):
+  include could not find requested file:
+
+    CompilerFlags
+Call Stack (most recent call first):
+  CMakeLists.txt:92 (include)
+```
+
+Then you have not checked out all submodules properly. Make sure you clone the repo properly:
+
+```
+git clone --depth 1 --recursive https://github.com/mumble-voip/mumble.git
+```
+
 ### Build a specific version or commit
 
 #### Version

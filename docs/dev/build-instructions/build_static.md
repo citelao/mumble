@@ -55,6 +55,27 @@ package you want to install and `<triplet>` is the desired target triplet. We re
 Therefore if you are on Windows, you'd install `boost` as `vcpkg install boost --triplet x64-windows-static-md`.
 
 
+### Using pre-built environments
+
+For common configurations, you can use the [pre-built vcpkg environments](https://github.com/mumble-voip/vcpkg/releases) mentioned above instead of
+using the script or manually installing the files.
+
+1. Download & unzip the appropriate environment.
+2. When using the `cmake` commands below, use the unzipped folder as `<vcpkg dir>` in the `-DCMAKE_TOOLCHAIN_FILE` and `-DIce_HOME` arguments. Use
+   the corresponding triplet for `-DVCPKG_TARGET_TRIPLET`.
+
+For example, on Windows, after extracting `mumble_env.x64-windows-static-md.<hash>.7z` to `C:\mumble-env\`:
+
+```bash
+cmake -G Ninja "-DVCPKG_TARGET_TRIPLET=x64-windows-static-md" "-Dstatic=ON" "-DCMAKE_TOOLCHAIN_FILE=C:\mumble-env\mumble_env.x64-windows-static-md.<hash>\scripts\buildsystems\vcpkg.cmake" "-DIce_HOME=C:\mumble-env\mumble_env.x64-windows-static-md.<hash>\installed\x64-windows-static-md" "-DCMAKE_BUILD_TYPE=Release" ..
+```
+
+(Replace `<hash>` with the commit hash in the filename, e.g. `b1fe4a4257`.)
+
+If you ran previous builds that failed with missing dependencies, you may need to delete and recreate your `build/` directory before using the new
+toolchain, or CMake will continue to struggle finding dependencies.
+
+
 ### Additional dependencies on Linux
 
 Additional `dev` packages will need to be installed for some components in vcpkg on GNU/Linux (package names match Ubuntu packages):
