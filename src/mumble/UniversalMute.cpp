@@ -35,20 +35,32 @@ struct UniversalMuter::Impl {
 	EventRegistrationToken muteStateToken{};
 };
 
-UniversalMuter::UniversalMuter(std::function< void() > onMuted, std::function< void() > onUnmuted)
-	: m_impl(std::make_unique< Impl >()) {
-	m_impl->onMuted   = std::move(onMuted);
-	m_impl->onUnmuted = std::move(onUnmuted);
-
+namespace {
+ComPtr< IVoipCallCoordinator > tryCreateCallCoordinator() {
 	ComPtr< IVoipCallCoordinatorStatics > statics;
 	HRESULT hr = RoGetActivationFactory(
 		HStringReference(RuntimeClass_Windows_ApplicationModel_Calls_VoipCallCoordinator).Get(),
 		IID_PPV_ARGS(&statics));
 	if (FAILED(hr))
-		return;
+		return nullptr;
 
-	hr = statics->GetDefault(&m_impl->coordinator);
+	ComPtr< IVoipCallCoordinator > coordinator;
+	hr = statics->GetDefault(&coordinator);
 	if (FAILED(hr))
+		return nullptr;
+
+	return coordinator;
+}
+}
+
+UniversalMuter::UniversalMuter(std::function< void() > onMuted, std::function< void() > onUnmuted)
+	: m_impl(std::make_unique< Impl >()) {
+	m_impl->onMuted   = std::move(onMuted);
+	m_impl->onUnmuted = std::move(onUnmuted);
+
+	// TOOD: initialize pattern
+	m_impl->coordinator = tryCreateCallCoordinator();
+	if (!m_impl->coordinator)
 		return;
 
 	auto handler = Callback< ITypedEventHandler< VoipCallCoordinator *, MuteChangeEventArgs * > >(
