@@ -7,7 +7,6 @@
 
 #include "win.h"
 
-#include <sstream>
 #include <versionhelpers.h>
 
 // clang-format off
@@ -32,23 +31,16 @@ struct UniversalMuter::Impl {
 };
 
 namespace {
-void dbg(const char *msg) {
-	OutputDebugStringA(("[UniversalMute] " + std::string(msg) + "\n").c_str());
-}
-void dbghr(const char *msg, HRESULT hr) {
-	std::ostringstream ss;
-	ss << "[UniversalMute] " << msg << " hr=0x" << std::hex << hr << "\n";
-	OutputDebugStringA(ss.str().c_str());
-}
-
+// C++/WinRT would be a bit simpler, but requires a newer couroutine ABI than
+// we are currently using (requires _COROUTINE_ABI=2, while Qt is compiled with
+// _COROUTINE_ABI=1). If the app fully upgrades to C++20, we can migrate to C++/WinRT.
+//
+// https://github.com/microsoft/cppwinrt/issues/1281
 ComPtr< IVoipCallCoordinator > tryCreateCallCoordinator() {
-	// WinRT does not exist on Windows 7. Probe for runtimeobject.dll before
-	// trying to use it.
-	// runtimeobject.dll is an API set DLL on Windows 10+ and cannot be probed with
-	// LoadLibraryW. Instead, guard with IsWindows8OrGreater() — WinRT requires Windows 8+.
-	// The /DELAYLOAD:runtimeobject.dll linker flag provides the actual safety net on Windows 7.
+	// WinRT was added in Windows 8; check for that before using WinRT.
+	// The /DELAYLOAD:runtimeobject.dll linker flag ensures we don't attempt
+	// to load the DLL on older versions.
 	if (!IsWindows8OrGreater()) {
-		dbg("Windows 8+ required, skipping");
 		return nullptr;
 	}
 
@@ -57,18 +49,15 @@ ComPtr< IVoipCallCoordinator > tryCreateCallCoordinator() {
 		HStringReference(RuntimeClass_Windows_ApplicationModel_Calls_VoipCallCoordinator).Get(),
 		IID_PPV_ARGS(&statics));
 	if (FAILED(hr)) {
-		dbghr("RoGetActivationFactory failed", hr);
 		return nullptr;
 	}
 
 	ComPtr< IVoipCallCoordinator > coordinator;
 	hr = statics->GetDefault(&coordinator);
 	if (FAILED(hr)) {
-		dbghr("GetDefault failed", hr);
 		return nullptr;
 	}
 
-	dbg("coordinator created OK");
 	return coordinator;
 }
 }
@@ -92,7 +81,6 @@ UniversalMuter::UniversalMuter(std::function< void() > onMuted, std::function< v
 				return S_OK;
 			boolean muted = FALSE;
 			args->get_Muted(&muted);
-			dbg(muted ? "MuteStateChanged: muted" : "MuteStateChanged: unmuted");
 			if (muted) {
 				if (impl->onMuted)
 					impl->onMuted();
@@ -105,8 +93,8 @@ UniversalMuter::UniversalMuter(std::function< void() > onMuted, std::function< v
 			return S_OK;
 		});
 
-	HRESULT hrMute = m_impl->coordinator->add_MuteStateChanged(handler.Get(), &m_impl->muteStateToken);
-	dbghr("add_MuteStateChanged", hrMute);
+	// Ignore failures; best effort.
+	m_impl->coordinator->add_MuteStateChanged(handler.Get(), &m_impl->muteStateToken);
 }
 
 UniversalMuter::~UniversalMuter() {
@@ -130,7 +118,6 @@ void UniversalMuter::startCall(const std::wstring &contactName, const std::wstri
 	HRESULT hr = m_impl->coordinator->RequestNewOutgoingCall(context.Get(), hContactName.Get(),
 															 hServiceName.Get(),
 															 VoipPhoneCallMedia_Audio, &call);
-	dbghr("RequestNewOutgoingCall", hr);
 	if (SUCCEEDED(hr))
 		m_impl->call = call;
 }
