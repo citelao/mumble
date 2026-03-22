@@ -1,5 +1,7 @@
 # Build FAQ
 
+For common compilation errors, see [common build errors](./common_build_errors.md).
+
 ### How to speed up the compilation
 
 Mumble supports being compiled as a [unity build](https://en.wikipedia.org/wiki/Unity_build), if you are using cmake 3.16 or newer. To use this
@@ -26,26 +28,6 @@ could be chosen over the manually installed one), you always have the option of 
 If for instance you have installed OpenSSL to `/usr/local/opt/openssl`, you can invoke cmake like this:
 ```
 cmake -DOPENSSL_ROOT_DIR=/usr/local/opt/openssl ..
-```
-
-
-### CMake cannot find `CompilerFlags`
-
-When running the initial `cmake` commands, if you get this error:
-
-```
-CMake Error at cmake/compiler.cmake:6 (include):
-  include could not find requested file:
-
-    CompilerFlags
-Call Stack (most recent call first):
-  CMakeLists.txt:92 (include)
-```
-
-Then you have not checked out all submodules properly. Make sure you clone the repo properly:
-
-```
-git clone --depth 1 --recursive https://github.com/mumble-voip/mumble.git
 ```
 
 ### Build a specific version or commit
