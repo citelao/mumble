@@ -10,9 +10,14 @@
 #include <memory>
 #include <string>
 
-// UniversalMuter integrates with the Windows VoipCallCoordinator API to support
-// the Windows 11 22H2+ Universal Mute feature. All WinRT headers are confined to
-// UniversalMute.cpp to avoid _COROUTINE_ABI mismatches with Qt-compiled objects.
+// A wrapper around the Windows 10 VoIP Call API, specifically enough to
+// interact with the Universal Mute feature. This ensures physical mute buttons
+// in recent laptops can mute Mumble.
+//
+// The feature is only supported on Windows 10 22H2 and later, but this class
+// gracefully no-ops on unsupported platforms.
+//
+// https://stackoverflow.com/questions/74683703/how-do-i-support-call-mute-universal-mute-in-my-app-for-windows-11-22h2
 class UniversalMuter {
 public:
 	UniversalMuter();
@@ -21,7 +26,7 @@ public:
 
 	UniversalMuter(UniversalMuter &&);
 	UniversalMuter &operator=(UniversalMuter &&);
-	UniversalMuter(const UniversalMuter &)       = delete;
+	UniversalMuter(const UniversalMuter &) = delete;
 	UniversalMuter &operator=(const UniversalMuter &) = delete;
 
 	void setMuted();
@@ -30,11 +35,10 @@ public:
 	void startCall();
 	void tryEndCall();
 
-	// callName uses std::wstring to avoid including Qt headers in UniversalMute.cpp.
-	// Callers should use QString::toStdWString() to convert.
 	void trySetCallName(const std::wstring &callName);
 
 private:
+	// Use the PIMPL pattern to avoid including WRL/WinRT headers in the public header.
 	struct Impl;
 	std::unique_ptr< Impl > m_impl;
 };

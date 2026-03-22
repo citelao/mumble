@@ -665,7 +665,7 @@ if(WIN32)
 			"UniversalMute.h"
 		)
 		target_compile_definitions(mumble_client_object_lib PUBLIC "USE_WIN_UNIVERSAL_MUTE")
-		# WRL (not cppwinrt) is used to avoid _COROUTINE_ABI=2 FAILIFMISMATCH from winrt headers.
+		# Universal Mute APIs require WinRT
 		target_link_libraries(mumble_client_object_lib PUBLIC runtimeobject.lib)
 	endif()
 else()

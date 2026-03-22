@@ -3,11 +3,6 @@
 // that can be found in the LICENSE file at the root of the
 // Mumble source tree or at <https://www.mumble.info/LICENSE>.
 
-// We use WRL (Windows Runtime C++ Template Library) instead of C++/WinRT projection
-// headers. cppwinrt adds a hardcoded #pragma comment(linker, "/FAILIFMISMATCH:_COROUTINE_ABI=2")
-// which conflicts with Qt libs compiled with _COROUTINE_ABI=1. WRL uses plain COM and has
-// no such pragma. See: https://github.com/microsoft/cppwinrt/issues/1281
-
 #include "UniversalMute.h"
 
 #include "win.h"
@@ -34,9 +29,14 @@ struct UniversalMuter::Impl {
 };
 
 namespace {
+// C++/WinRT would be a bit simpler, but requires a newer couroutine ABI than
+// we are currently using (requires _COROUTINE_ABI=2, while Qt is compiled with
+// _COROUTINE_ABI=1). If the app fully upgrades to C++20, we can migrate to C++/WinRT.
+//
+// https://github.com/microsoft/cppwinrt/issues/1281
 ComPtr< IVoipCallCoordinator > tryCreateCallCoordinator() {
-	// runtimeobject.dll is delay-loaded; it does not exist on Windows 7.
-	// Probe for it before touching any WRL/WinRT calls.
+	// WinRT does not exist on Windows 7. Probe for runtimeobject.dll before
+	// trying to use it.
 	HMODULE hRo = LoadLibraryW(L"runtimeobject.dll");
 	if (!hRo)
 		return nullptr;
