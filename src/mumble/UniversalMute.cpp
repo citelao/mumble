@@ -94,13 +94,13 @@ UniversalMuter::UniversalMuter(UniversalMuter &&)            = default;
 UniversalMuter &UniversalMuter::operator=(UniversalMuter &&) = default;
 
 UniversalMuter::~UniversalMuter() {
-	if (m_impl && m_impl->coordinator)
+	if (m_impl->coordinator)
 		m_impl->coordinator->remove_MuteStateChanged(m_impl->muteStateToken);
 	tryEndCall();
 }
 
 void UniversalMuter::startCall() {
-	if (!m_impl || !m_impl->coordinator)
+	if (!m_impl->coordinator)
 		return;
 
 	ComPtr< IVoipPhoneCall > call;
@@ -119,14 +119,14 @@ void UniversalMuter::startCall() {
 }
 
 void UniversalMuter::tryEndCall() {
-	if (!m_impl || !m_impl->call)
+	if (!m_impl->call)
 		return;
 	m_impl->call->NotifyCallEnded();
 	m_impl->call.Reset();
 }
 
 void UniversalMuter::trySetCallName(const std::wstring &callName) {
-	if (!m_impl || !m_impl->call)
+	if (!m_impl->call)
 		return;
 	HString name;
 	name.Set(callName.c_str());
@@ -134,11 +134,11 @@ void UniversalMuter::trySetCallName(const std::wstring &callName) {
 }
 
 void UniversalMuter::setMuted() {
-	if (m_impl && m_impl->coordinator)
+	if (m_impl->coordinator)
 		m_impl->coordinator->NotifyMuted();
 }
 
 void UniversalMuter::setUnmuted() {
-	if (m_impl && m_impl->coordinator)
+	if (m_impl->coordinator)
 		m_impl->coordinator->NotifyUnmuted();
 }
