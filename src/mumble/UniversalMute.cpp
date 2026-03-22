@@ -3,12 +3,10 @@
 // that can be found in the LICENSE file at the root of the
 // Mumble source tree or at <https://www.mumble.info/LICENSE>.
 
-// NOTE: Do NOT include any Qt headers in this file.
 // We use WRL (Windows Runtime C++ Template Library) instead of C++/WinRT projection
-// headers to avoid the _COROUTINE_ABI linker mismatch. cppwinrt headers add a hardcoded
-// #pragma comment(linker, "/FAILIFMISMATCH:_COROUTINE_ABI=2") which conflicts with Qt
-// libs compiled with _COROUTINE_ABI=1. WRL uses plain COM and has no such pragma.
-// See: https://github.com/microsoft/cppwinrt/issues/1281
+// headers. cppwinrt adds a hardcoded #pragma comment(linker, "/FAILIFMISMATCH:_COROUTINE_ABI=2")
+// which conflicts with Qt libs compiled with _COROUTINE_ABI=1. WRL uses plain COM and has
+// no such pragma. See: https://github.com/microsoft/cppwinrt/issues/1281
 
 #include "UniversalMute.h"
 

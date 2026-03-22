@@ -30,8 +30,8 @@ public:
 	void startCall();
 	void tryEndCall();
 
-	// callName must be pre-converted from QString by the caller;
-	// Qt headers cannot be included in UniversalMute.cpp due to _COROUTINE_ABI constraints.
+	// callName uses std::wstring to avoid including Qt headers in UniversalMute.cpp.
+	// Callers should use QString::toStdWString() to convert.
 	void trySetCallName(const std::wstring &callName);
 
 private:
