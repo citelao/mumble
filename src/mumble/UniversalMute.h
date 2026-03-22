@@ -11,10 +11,10 @@
 #include <string>
 
 // A wrapper around the Windows 10 VoIP Call API, specifically enough to
-// interact with the Universal Mute feature. This ensures physical mute buttons
+// interact with the Windows 11 Universal Mute feature. This ensures physical mute buttons
 // in recent laptops can mute Mumble.
 //
-// The feature is only supported on Windows 10 22H2 and later, but this class
+// Universal Mute is only supported on Windows 11 22H2 and later, but this class
 // gracefully no-ops on unsupported platforms.
 //
 // https://stackoverflow.com/questions/74683703/how-do-i-support-call-mute-universal-mute-in-my-app-for-windows-11-22h2
