@@ -15,12 +15,12 @@
 // UniversalMute.cpp to avoid _COROUTINE_ABI mismatches with Qt-compiled objects.
 class UniversalMuter {
 public:
-	UniversalMuter() = default;
+	UniversalMuter();
 	UniversalMuter(std::function< void() > onMuted, std::function< void() > onUnmuted);
 	~UniversalMuter();
 
-	UniversalMuter(UniversalMuter &&)            = default;
-	UniversalMuter &operator=(UniversalMuter &&) = default;
+	UniversalMuter(UniversalMuter &&);
+	UniversalMuter &operator=(UniversalMuter &&);
 	UniversalMuter(const UniversalMuter &)       = delete;
 	UniversalMuter &operator=(const UniversalMuter &) = delete;
 

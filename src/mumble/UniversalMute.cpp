@@ -63,24 +63,31 @@ UniversalMuter::UniversalMuter(std::function< void() > onMuted, std::function< v
 	if (!m_impl->coordinator)
 		return;
 
+	// Capture impl directly rather than 'this': the UniversalMuter may be move-assigned after
+	// construction, invalidating 'this', but the Impl object stays at the same heap address.
+	Impl *impl = m_impl.get();
 	auto handler = Callback< ITypedEventHandler< VoipCallCoordinator *, MuteChangeEventArgs * > >(
-		[this](IVoipCallCoordinator *, IMuteChangeEventArgs *args) -> HRESULT {
+		[impl](IVoipCallCoordinator *, IMuteChangeEventArgs *args) -> HRESULT {
 			boolean muted = FALSE;
 			args->get_Muted(&muted);
 			if (muted) {
-				if (m_impl->onMuted)
-					m_impl->onMuted();
-				m_impl->coordinator->NotifyMuted();
+				if (impl->onMuted)
+					impl->onMuted();
+				impl->coordinator->NotifyMuted();
 			} else {
-				if (m_impl->onUnmuted)
-					m_impl->onUnmuted();
-				m_impl->coordinator->NotifyUnmuted();
+				if (impl->onUnmuted)
+					impl->onUnmuted();
+				impl->coordinator->NotifyUnmuted();
 			}
 			return S_OK;
 		});
 
 	m_impl->coordinator->add_MuteStateChanged(handler.Get(), &m_impl->muteStateToken);
 }
+
+UniversalMuter::UniversalMuter()                             = default;
+UniversalMuter::UniversalMuter(UniversalMuter &&)            = default;
+UniversalMuter &UniversalMuter::operator=(UniversalMuter &&) = default;
 
 UniversalMuter::~UniversalMuter() {
 	if (m_impl && m_impl->coordinator)
