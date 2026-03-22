@@ -190,7 +190,7 @@ void MainWindow::msgServerSync(const MumbleProto::ServerSync &msg) {
 
 #ifdef USE_WIN_UNIVERSAL_MUTE
 	if (user->cChannel)
-		m_universalMuter.trySetCallName(user->cChannel->qsName.toStdWString());
+		m_universalMuter->trySetCallName(user->cChannel->qsName.toStdWString());
 #endif
 
 	emit serverSynchronized();

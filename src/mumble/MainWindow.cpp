@@ -514,7 +514,7 @@ void MainWindow::setupGui() {
 	qaAudioDeaf->setChecked(Global::get().s.bDeaf);
 
 #ifdef USE_WIN_UNIVERSAL_MUTE
-	m_universalMuter = UniversalMuter(
+	m_universalMuter.emplace(
 		[this]() {
 			// Fired on a WinRT thread pool thread — marshal to Qt main thread.
 			QMetaObject::invokeMethod(this, [this]() {
@@ -2773,9 +2773,9 @@ void MainWindow::on_qaAudioMute_triggered() {
 
 #ifdef USE_WIN_UNIVERSAL_MUTE
 	if (Global::get().s.bMute) {
-		m_universalMuter.setMuted();
+		m_universalMuter->setMuted();
 	} else {
-		m_universalMuter.setUnmuted();
+		m_universalMuter->setUnmuted();
 	}
 #endif
 
@@ -3556,7 +3556,7 @@ void MainWindow::serverConnected() {
 	qaServerBanList->setEnabled(true);
 
 #ifdef USE_WIN_UNIVERSAL_MUTE
-	m_universalMuter.startCall();
+	m_universalMuter->startCall(tr("Connecting...").toStdWString(), tr("Mumble").toStdWString());
 #endif
 
 	Channel *root = Channel::get(Mumble::ROOT_CHANNEL_ID);
@@ -3593,7 +3593,7 @@ void MainWindow::serverConnected() {
 
 void MainWindow::serverDisconnected(QAbstractSocket::SocketError err, QString reason) {
 #ifdef USE_WIN_UNIVERSAL_MUTE
-	m_universalMuter.tryEndCall();
+	m_universalMuter->tryEndCall();
 #endif
 
 	// clear ChannelListener

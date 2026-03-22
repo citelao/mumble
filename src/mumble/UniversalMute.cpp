@@ -59,7 +59,7 @@ ComPtr< IVoipCallCoordinator > tryCreateCallCoordinator() {
 }
 
 UniversalMuter::UniversalMuter(std::function< void() > onMuted, std::function< void() > onUnmuted)
-	: m_impl(std::make_unique< Impl >()) {
+	: m_impl(std::make_shared< Impl >()) {
 	m_impl->onMuted   = std::move(onMuted);
 	m_impl->onUnmuted = std::move(onUnmuted);
 
@@ -67,11 +67,14 @@ UniversalMuter::UniversalMuter(std::function< void() > onMuted, std::function< v
 	if (!m_impl->coordinator)
 		return;
 
-	// Capture impl directly rather than 'this': the UniversalMuter may be move-assigned after
-	// construction, invalidating 'this', but the Impl object stays at the same heap address.
-	Impl *impl = m_impl.get();
+	// Capture a weak_ptr so the callback safely no-ops if UniversalMuter is destroyed
+	// while a callback is in flight (e.g. racing with remove_MuteStateChanged).
+	std::weak_ptr< Impl > weakImpl = m_impl;
 	auto handler = Callback< ITypedEventHandler< VoipCallCoordinator *, MuteChangeEventArgs * > >(
-		[impl](IVoipCallCoordinator *, IMuteChangeEventArgs *args) -> HRESULT {
+		[weakImpl](IVoipCallCoordinator *, IMuteChangeEventArgs *args) -> HRESULT {
+			auto impl = weakImpl.lock();
+			if (!impl)
+				return S_OK;
 			boolean muted = FALSE;
 			args->get_Muted(&muted);
 			if (muted) {
@@ -89,33 +92,34 @@ UniversalMuter::UniversalMuter(std::function< void() > onMuted, std::function< v
 	m_impl->coordinator->add_MuteStateChanged(handler.Get(), &m_impl->muteStateToken);
 }
 
-UniversalMuter::UniversalMuter()                             = default;
-UniversalMuter::UniversalMuter(UniversalMuter &&)            = default;
-UniversalMuter &UniversalMuter::operator=(UniversalMuter &&) = default;
-
 UniversalMuter::~UniversalMuter() {
 	if (m_impl->coordinator)
 		m_impl->coordinator->remove_MuteStateChanged(m_impl->muteStateToken);
 	tryEndCall();
 }
 
-void UniversalMuter::startCall() {
+void UniversalMuter::startCall(const std::wstring &contactName, const std::wstring &serviceName) {
 	if (!m_impl->coordinator)
 		return;
 
 	ComPtr< IVoipPhoneCall > call;
-	HString context, contactName, serviceName;
+	HString context, hContactName, hServiceName;
 	context.Set(L"");
-	contactName.Set(L"Connecting...");
-	serviceName.Set(L"Mumble");
+	hContactName.Set(contactName.c_str());
+	hServiceName.Set(serviceName.c_str());
 
 	// RequestNewOutgoingCall may fail with E_ACCESSDENIED if the app lacks package identity.
-	// Mute state notifications still work without an active call object.
-	HRESULT hr = m_impl->coordinator->RequestNewOutgoingCall(context.Get(), contactName.Get(),
-															 serviceName.Get(),
+	// Without a registered call the system will not route mute events to us, so clear the
+	// coordinator to let all methods gracefully no-op.
+	HRESULT hr = m_impl->coordinator->RequestNewOutgoingCall(context.Get(), hContactName.Get(),
+															 hServiceName.Get(),
 															 VoipPhoneCallMedia_Audio, &call);
-	if (SUCCEEDED(hr))
+	if (SUCCEEDED(hr)) {
 		m_impl->call = call;
+	} else {
+		m_impl->coordinator->remove_MuteStateChanged(m_impl->muteStateToken);
+		m_impl->coordinator.Reset();
+	}
 }
 
 void UniversalMuter::tryEndCall() {

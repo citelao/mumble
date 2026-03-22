@@ -20,19 +20,18 @@
 // https://stackoverflow.com/questions/74683703/how-do-i-support-call-mute-universal-mute-in-my-app-for-windows-11-22h2
 class UniversalMuter {
 public:
-	UniversalMuter();
 	UniversalMuter(std::function< void() > onMuted, std::function< void() > onUnmuted);
 	~UniversalMuter();
 
-	UniversalMuter(UniversalMuter &&);
-	UniversalMuter &operator=(UniversalMuter &&);
-	UniversalMuter(const UniversalMuter &) = delete;
+	UniversalMuter(const UniversalMuter &)            = delete;
 	UniversalMuter &operator=(const UniversalMuter &) = delete;
+	UniversalMuter(UniversalMuter &&)                 = delete;
+	UniversalMuter &operator=(UniversalMuter &&)      = delete;
 
 	void setMuted();
 	void setUnmuted();
 
-	void startCall();
+	void startCall(const std::wstring &contactName, const std::wstring &serviceName);
 	void tryEndCall();
 
 	void trySetCallName(const std::wstring &callName);
@@ -40,7 +39,7 @@ public:
 private:
 	// Use the PIMPL pattern to avoid including WRL/WinRT headers in the public header.
 	struct Impl;
-	std::unique_ptr< Impl > m_impl;
+	std::shared_ptr< Impl > m_impl;
 };
 
 #endif // MUMBLE_MUMBLE_UNIVERSAL_MUTE_H_

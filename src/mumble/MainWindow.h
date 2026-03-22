@@ -211,7 +211,9 @@ protected:
 	std::optional< unsigned int > m_movedBackFromChannel;
 
 #ifdef USE_WIN_UNIVERSAL_MUTE
-	UniversalMuter m_universalMuter;
+	// A std::optional simply because we initialize this in setupGui(), not the
+	// constructor.
+	std::optional< UniversalMuter > m_universalMuter;
 #endif
 
 	static constexpr int stateVersion();
