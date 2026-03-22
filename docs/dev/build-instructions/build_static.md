@@ -139,6 +139,9 @@ However, you can use powershell 64bit if you run the following script prior to c
 ```powershell
 # Based on the version of Visual Studio you have installed, the VC++ tools will be in a specific location.
 # Using the "x64 Native Tools Command Prompt" shortcut referenced above, you can find the root folder by viewing the properties of the shortcut.
+#
+# You can also use vswhere.exe (ships with Visual Studio) to find vcvarsall.bat:
+#     vswhere -latest -products * -find "VC\Auxiliary\Build\vcvarsall.bat"
 
 # e.g. Visual Studio 2015 path
 # "${Env:PROGRAMFILES(X86)}\Microsoft Visual Studio 14.0\VC\"

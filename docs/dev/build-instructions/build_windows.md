@@ -17,7 +17,7 @@ You'll need to set up a window with Visual Studio's variables. You can open a Vi
 # You can find this path with the `vswhere.exe` tool (C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe)
 # that ships with Visual Studio:
 # 
-# vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -find "VC\Auxiliary\Build\vcvars64.bat"
+# vswhere -latest -products * -find "VC\Auxiliary\Build\vcvars64.bat"
 cmd /c "`"C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Auxiliary\Build\vcvars64.bat`" && set" |
     ForEach-Object {
         if ($_ -match "^([^=]+)=(.*)$") { [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2]) }
