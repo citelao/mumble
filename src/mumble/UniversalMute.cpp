@@ -7,9 +7,8 @@
 
 #include "win.h"
 
-#include <versionhelpers.h>
-
 // clang-format off
+#include <versionhelpers.h>
 #include <wrl.h>
 #include <wrl/event.h>
 #include <wrl/wrappers/corewrappers.h>
