@@ -109,17 +109,12 @@ void UniversalMuter::startCall(const std::wstring &contactName, const std::wstri
 	hServiceName.Set(serviceName.c_str());
 
 	// RequestNewOutgoingCall may fail with E_ACCESSDENIED if the app lacks package identity.
-	// Without a registered call the system will not route mute events to us, so clear the
-	// coordinator to let all methods gracefully no-op.
+	// The coordinator and MuteStateChanged events remain active regardless.
 	HRESULT hr = m_impl->coordinator->RequestNewOutgoingCall(context.Get(), hContactName.Get(),
 															 hServiceName.Get(),
 															 VoipPhoneCallMedia_Audio, &call);
-	if (SUCCEEDED(hr)) {
+	if (SUCCEEDED(hr))
 		m_impl->call = call;
-	} else {
-		m_impl->coordinator->remove_MuteStateChanged(m_impl->muteStateToken);
-		m_impl->coordinator.Reset();
-	}
 }
 
 void UniversalMuter::tryEndCall() {
