@@ -642,7 +642,7 @@ if(WIN32)
 				Boost::dynamic_linking
 				Delayimp.lib
 			)
-		set_property(TARGET mumble_client_object_lib APPEND_STRING PROPERTY LINK_FLAGS " /DELAYLOAD:user32.dll /DELAYLOAD:qwave.dll /DELAYLOAD:runtimeobject.dll")
+		set_property(TARGET mumble_client_object_lib APPEND_STRING PROPERTY LINK_FLAGS " /DELAYLOAD:user32.dll /DELAYLOAD:qwave.dll")
 	endif()
 
 	target_link_libraries(mumble_client_object_lib
@@ -665,8 +665,10 @@ if(WIN32)
 			"UniversalMute.h"
 		)
 		target_compile_definitions(mumble_client_object_lib PUBLIC "USE_WIN_UNIVERSAL_MUTE")
-		# Universal Mute APIs require WinRT
+		# WinRT required; delay-load so the binary still starts on Windows 7 where runtimeobject.dll
+		# does not exist. IsWindows8OrGreater() must guard call sites at runtime.
 		target_link_libraries(mumble_client_object_lib PUBLIC runtimeobject.lib)
+		set_property(TARGET mumble_client_object_lib APPEND_STRING PROPERTY LINK_FLAGS " /DELAYLOAD:runtimeobject.dll")
 	endif()
 else()
 	target_sources(mumble_client_object_lib PRIVATE "SharedMemory_unix.cpp")
