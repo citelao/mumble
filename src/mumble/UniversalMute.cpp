@@ -35,6 +35,13 @@ struct UniversalMuter::Impl {
 
 namespace {
 ComPtr< IVoipCallCoordinator > tryCreateCallCoordinator() {
+	// runtimeobject.dll is delay-loaded; it does not exist on Windows 7.
+	// Probe for it before touching any WRL/WinRT calls.
+	HMODULE hRo = LoadLibraryW(L"runtimeobject.dll");
+	if (!hRo)
+		return nullptr;
+	FreeLibrary(hRo);
+
 	ComPtr< IVoipCallCoordinatorStatics > statics;
 	HRESULT hr = RoGetActivationFactory(
 		HStringReference(RuntimeClass_Windows_ApplicationModel_Calls_VoipCallCoordinator).Get(),
@@ -56,7 +63,6 @@ UniversalMuter::UniversalMuter(std::function< void() > onMuted, std::function< v
 	m_impl->onMuted   = std::move(onMuted);
 	m_impl->onUnmuted = std::move(onUnmuted);
 
-	// TOOD: initialize pattern
 	m_impl->coordinator = tryCreateCallCoordinator();
 	if (!m_impl->coordinator)
 		return;
