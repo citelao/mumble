@@ -579,7 +579,7 @@ Speak loudly, as when you are annoyed or excited. Decrease the volume in the sou
        <item>
         <widget class="QLabel" name="qliVadTuningTextWebRTC">
          <property name="text">
-          <string>Next you need to choose the voice detection sensitivity. The aggressiveness level controls how strictly speech is detected. Lower levels are more permissive and will pick up quiet or distant speech, but may also trigger on background noise. Higher levels are more strict and will better filter out noise, but may cut off softer speech.</string>
+          <string>Next, you need to choose the voice detection sensitivity. The aggressiveness level controls how strictly speech is detected. Lower levels are more permissive and will pick up quiet or distant speech, but may also trigger on background noise. Higher levels are more strict and will better filter out noise, but may cut off softer speech.</string>
          </property>
 	 <property name="visible">
 	  <bool>false</bool>
