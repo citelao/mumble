@@ -230,6 +230,17 @@ else()
 	find_pkg("CLI11" 2 REQUIRED)
 endif()
 
+if(bundled-spdlog)
+	# vcpkg may also have a "spdlog" (and "fmt") package installed, e.g. because it is
+	# listed as a dependency for the non-bundled configuration. Its include directory can
+	# end up earlier in the compiler's search order than the bundled one below, so
+	# consumers silently resolve <spdlog/...> headers to the vcpkg copy (built against a
+	# different fmt version) while still linking this bundled, ABI-incompatible
+	# spdlog::spdlog target, causing unresolved-symbol link errors. Prepending it directly
+	# on the consuming target guarantees it wins regardless of transitive include order.
+	target_include_directories(shared SYSTEM BEFORE PUBLIC "${3RDPARTY_DIR}/spdlog/include")
+endif()
+
 if(client)
 	add_subdirectory(mumble)
 
