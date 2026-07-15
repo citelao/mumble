@@ -134,3 +134,36 @@ jobs:
       with:
           path: '${{ env.MUMBLE_ENVIRONMENT_DIR }}'
           key: ${{ env.MUMBLE_ENVIRONMENT_VERSION }}
+
+
+  # Keeps a single rolling "nightly" pre-release up to date with the latest successful
+  # master build, so there's always a stable link to grab the newest binaries from.
+  release:
+    needs: [ build ]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/download-artifact@v6
+      with:
+          path: artifacts
+
+    - name: Zip each platform's artifacts
+      working-directory: artifacts
+      shell: bash
+      run: |
+        for dir in */; do
+          name="${dir%/}"
+          (cd "$name" && zip -r "../${name}.zip" .)
+        done
+
+    - name: Publish nightly pre-release
+      uses: softprops/action-gh-release@v2
+      with:
+          tag_name: nightly
+          name: 'Nightly build'
+          prerelease: true
+          make_latest: false
+          files: artifacts/*.zip
