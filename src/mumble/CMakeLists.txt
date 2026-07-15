@@ -24,6 +24,8 @@ option(bundled-speex "Build the included version of Speex instead of looking for
 option(rnnoise "Use RNNoise for machine learning noise reduction." ON)
 option(bundled-rnnoise "Build the included version of RNNoise instead of looking for one on the system." ${rnnoise})
 
+option(webrtc-audio-processing "Use WebRTC audio processing for various dsp features." OFF)
+
 option(manual-plugin "Include the built-in \"manual\" positional audio plugin." ON)
 
 option(qtspeech "Use Qt's text-to-speech system (part of the Qt Speech module) instead of Mumble's own OS-specific text-to-speech implementations." OFF)
@@ -400,6 +402,16 @@ target_include_directories(mumble PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 
 target_link_libraries(mumble PRIVATE mumble_client_object_lib shared spdlog::spdlog)
 target_link_libraries(mumble PRIVATE CLI11::CLI11)
+
+# See the analogous comment in src/CMakeLists.txt: force the bundled spdlog/CLI11 headers
+# to take precedence over any vcpkg-provided copies that might otherwise shadow them and
+# cause an ABI mismatch against the bundled libraries linked above.
+if(bundled-spdlog)
+	target_include_directories(mumble SYSTEM BEFORE PRIVATE "${3RDPARTY_DIR}/spdlog/include")
+endif()
+if(bundled-cli11)
+	target_include_directories(mumble SYSTEM BEFORE PRIVATE "${3RDPARTY_DIR}/CLI11/include")
+endif()
 
 target_compile_definitions(mumble_client_object_lib
 	PUBLIC
@@ -815,6 +827,22 @@ else()
 	else()
 		target_compile_definitions(mumble_client_object_lib PUBLIC "USE_NO_TTS")
 	endif()
+endif()
+
+if(webrtc-audio-processing)
+	find_pkg(unofficial-webrtc REQUIRED)
+
+	target_compile_definitions(
+		mumble_client_object_lib
+		PUBLIC
+			USE_WEBRTC_AUDIO_PROCESSING
+	)
+
+	target_link_libraries(
+		mumble_client_object_lib
+		PUBLIC
+			unofficial::webrtc::webrtc
+	)
 endif()
 
 if(crash-report)
