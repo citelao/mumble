@@ -1,5 +1,11 @@
 ![Mumble screenshot](screenshots/Mumble.png)
 
+> [!NOTE]
+>
+> This is a friendly fork of Mumble, so I can test some new features like WebRTC-based echo cancellation. We are working to merge these changes back into main.
+>
+> For a list of changes, see [FORK_CHANGES](./FORK_CHANGES.md).
+
 # Mumble - Open Source voice-chat software
 
 [![https://www.mumble.info](https://img.shields.io/badge/Website-https%3A%2F%2Fwww.mumble.info-blue?style=for-the-badge)](https://www.mumble.info)
