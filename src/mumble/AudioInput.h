@@ -234,8 +234,21 @@ protected:
 	std::atomic< Settings::VADSource > m_vad;
 
 #ifdef USE_WEBRTC_AUDIO_PROCESSING
-	std::atomic< std::shared_ptr< webrtc::Vad > > m_vadWebrtc;
+	// Apple's libc++ doesn't implement the C++20 std::atomic<std::shared_ptr<T>> specialization,
+	// so guard the pointer with a mutex instead. It's loaded once per audio frame and swapped
+	// only when the VAD settings change, so the lock is effectively always uncontended.
+	mutable std::mutex m_vadWebrtcMutex;
+	std::shared_ptr< webrtc::Vad > m_vadWebrtc;
 	webrtc::Vad::Aggressiveness m_vadWebrtcAggressiveness;
+
+	std::shared_ptr< webrtc::Vad > loadWebrtcVad() const {
+		std::lock_guard< std::mutex > guard(m_vadWebrtcMutex);
+		return m_vadWebrtc;
+	}
+	void storeWebrtcVad(std::shared_ptr< webrtc::Vad > vad) {
+		std::lock_guard< std::mutex > guard(m_vadWebrtcMutex);
+		m_vadWebrtc = std::move(vad);
+	}
 #endif
 
 	/// bResetEncoder is a flag that notifies
