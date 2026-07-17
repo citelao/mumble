@@ -7,12 +7,15 @@ manually and irregularly. As of this writing it's missing the `webrtc` port (add
 
 Rather than switching the whole build off the pinned fork (and losing `zeroc-ice-mumble`, which
 isn't available in upstream vcpkg), the `webrtc` directory here is a copy of upstream's port
-recipe, unmodified, taken from
+recipe, taken from
 [microsoft/vcpkg@c276a0a](https://github.com/microsoft/vcpkg/commit/c276a0ac) and
 [microsoft/vcpkg@cfb5905](https://github.com/microsoft/vcpkg/commit/cfb59059) (MIT licensed, see
-[vcpkg's LICENSE.txt](https://github.com/microsoft/vcpkg/blob/master/LICENSE.txt)). Every
-dependency it needs (`abseil`, `aom`, `libvpx`, `libyuv`, `libsrtp`, `pffft`, `jsoncpp`,
-`vcpkg-tool-gn`, `vcpkg-tool-ninja`, ...) already exists in the mumble-voip fork.
+[vcpkg's LICENSE.txt](https://github.com/microsoft/vcpkg/blob/master/LICENSE.txt)), plus one local
+patch (`build-0012-skip-internal-mllvm-flags-on-mac.patch`, port-version 2): upstream's macOS build
+passes `-mllvm` flags that only Chromium's own prebuilt clang understands, but this port builds
+against the system Xcode clang there instead, which rejects them. Every other dependency it needs
+(`abseil`, `aom`, `libvpx`, `libyuv`, `libsrtp`, `pffft`, `jsoncpp`, `vcpkg-tool-gn`,
+`vcpkg-tool-ninja`, ...) already exists in the mumble-voip fork.
 
 ## Usage
 

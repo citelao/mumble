@@ -40,6 +40,11 @@ set(BUILD_PATCHES
     # Instead I see a list = []
     build-0010-use-none.patch
     build-0011-do-not-detect-vs-path.patch
+    # Xcode's clang doesn't understand these -mllvm flags (they're internal options
+    # only supported by Chromium's own prebuilt/patched clang); mac builds here use
+    # the system Xcode clang instead, so skip them there. See mumble-voip/mumble's
+    # vcpkg-overlay-ports/README.md for why this port lives here at all.
+    build-0012-skip-internal-mllvm-flags-on-mac.patch
 )
 
 set(WEBRTC_SOURCE_URL "https://webrtc.googlesource.com/src")
