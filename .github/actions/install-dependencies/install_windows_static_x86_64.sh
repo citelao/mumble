@@ -7,7 +7,7 @@ source "$( dirname "$0" )/common.sh"
 
 # All of these are already installed on the runner
 # choco install cmake ninja vswhere
-choco install aria2 7zip
+choco install aria2 7zip nasm
 
 verify_required_env_variables_set
 

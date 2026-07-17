@@ -174,8 +174,9 @@ install_webrtc_overlay() {
 		# rest (ports/, triplets/, the full scripts/ directory, even top-level files like
 		# LICENSE.txt that its portfiles install) to actually run a new install. Merge the
 		# full fetched tree in without clobbering what's already there (the prebuilt
-		# installed/ output and vcpkg binary).
-		cp -Rn "$vcpkg_src_dir/." "$env_dir/"
+		# installed/ output and vcpkg binary). BSD cp (macOS) exits 1 whenever -n skips an
+		# existing file, unlike GNU cp - that's expected here, so don't let it abort the script.
+		cp -Rn "$vcpkg_src_dir/." "$env_dir/" || true
 
 		rm -rf "$vcpkg_src_dir"
 	fi
