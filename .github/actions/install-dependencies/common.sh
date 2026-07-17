@@ -169,14 +169,13 @@ install_webrtc_overlay() {
 		aria2c "https://codeload.github.com/mumble-voip/vcpkg/tar.gz/$MUMBLE_ENVIRONMENT_COMMIT" --out="vcpkg-src.tar.gz" --dir="$vcpkg_src_dir"
 		tar -xzf "$vcpkg_src_dir/vcpkg-src.tar.gz" -C "$vcpkg_src_dir" --strip-components=1
 
-		cp -R "$vcpkg_src_dir/ports" "$env_dir/ports"
-		cp -R "$vcpkg_src_dir/triplets" "$env_dir/triplets"
-
-		# The environment archive only ships the scripts/buildsystems and scripts/cmake
-		# subdirectories (enough for CMake's toolchain file). vcpkg itself needs the rest of
-		# scripts/ too (e.g. vcpkg-tools.json, for bootstrapping its own cmake/ninja/gn copies)
-		# to actually run an install, so merge the full tree in without clobbering what's there.
-		cp -Rn "$vcpkg_src_dir/scripts/." "$env_dir/scripts/"
+		# The environment archive only ships a partial tree (installed/, the vcpkg binary,
+		# and just enough of scripts/ for CMake's toolchain file) - vcpkg itself needs the
+		# rest (ports/, triplets/, the full scripts/ directory, even top-level files like
+		# LICENSE.txt that its portfiles install) to actually run a new install. Merge the
+		# full fetched tree in without clobbering what's already there (the prebuilt
+		# installed/ output and vcpkg binary).
+		cp -Rn "$vcpkg_src_dir/." "$env_dir/"
 
 		rm -rf "$vcpkg_src_dir"
 	fi
