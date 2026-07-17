@@ -172,6 +172,12 @@ install_webrtc_overlay() {
 		cp -R "$vcpkg_src_dir/ports" "$env_dir/ports"
 		cp -R "$vcpkg_src_dir/triplets" "$env_dir/triplets"
 
+		# The environment archive only ships the scripts/buildsystems and scripts/cmake
+		# subdirectories (enough for CMake's toolchain file). vcpkg itself needs the rest of
+		# scripts/ too (e.g. vcpkg-tools.json, for bootstrapping its own cmake/ninja/gn copies)
+		# to actually run an install, so merge the full tree in without clobbering what's there.
+		cp -Rn "$vcpkg_src_dir/scripts/." "$env_dir/scripts/"
+
 		rm -rf "$vcpkg_src_dir"
 	fi
 
