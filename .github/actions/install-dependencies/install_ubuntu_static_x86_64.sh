@@ -23,6 +23,8 @@ verify_required_env_variables_set
 
 make_build_env_available "tar.xz"
 
+install_webrtc_overlay "$MUMBLE_VCPKG_TRIPLET" "$GITHUB_WORKSPACE"
+
 # MySQL and PostgreSQL are pre-installed on GitHub-hosted runners.
 # Set them up for the Mumble tests
 

@@ -142,6 +142,54 @@ make_build_env_available() {
 	fi
 }
 
+# The pre-built environment archives from mumble-voip/vcpkg releases only contain the
+# "installed" output (plus the vcpkg binary and CMake toolchain scripts) - they don't include
+# the ports/triplets trees, so `vcpkg install` can't resolve any new package against
+# them as-is. To install `webrtc` (missing from our vcpkg fork as of its 2026-02-15 sync, see
+# vcpkg-overlay-ports/README.md) we fetch just those trees from the fork at the exact commit
+# the environment was built from, then run a live vcpkg install using our overlay port,
+# reusing the environment's already-built packages instead of rebuilding everything.
+install_webrtc_overlay() {
+	local triplet="$1"
+	local repo_root="$2"
+
+	if [[ -z "$triplet" || -z "$repo_root" ]]; then
+		echo "install_webrtc_overlay: missing triplet or repo_root argument" 1>&2
+		exit 1
+	fi
+
+	local env_dir="$MUMBLE_ENVIRONMENT_DIR"
+
+	if [[ ! -d "$env_dir/ports" ]]; then
+		echo "Fetching vcpkg port recipes at $MUMBLE_ENVIRONMENT_COMMIT"
+
+		local vcpkg_src_dir
+		vcpkg_src_dir="$(mktemp -d)"
+
+		aria2c "https://codeload.github.com/mumble-voip/vcpkg/tar.gz/$MUMBLE_ENVIRONMENT_COMMIT" --out="vcpkg-src.tar.gz" --dir="$vcpkg_src_dir"
+		tar -xzf "$vcpkg_src_dir/vcpkg-src.tar.gz" -C "$vcpkg_src_dir" --strip-components=1
+
+		cp -R "$vcpkg_src_dir/ports" "$env_dir/ports"
+		cp -R "$vcpkg_src_dir/triplets" "$env_dir/triplets"
+
+		rm -rf "$vcpkg_src_dir"
+	fi
+
+	local vcpkg_exe="$env_dir/vcpkg"
+	if [[ ! -x "$vcpkg_exe" ]]; then
+		vcpkg_exe="$env_dir/vcpkg.exe"
+	fi
+
+	if [[ ! -x "$vcpkg_exe" ]]; then
+		echo "No vcpkg executable found in $env_dir" 1>&2
+		exit 1
+	fi
+
+	"$vcpkg_exe" install webrtc \
+		--overlay-ports="$repo_root/vcpkg-overlay-ports" \
+		--triplet "$triplet"
+}
+
 configure_database_tables() {
 	if [[ -x "$( which sudo )" ]]; then
 		sudo_cmd="sudo"

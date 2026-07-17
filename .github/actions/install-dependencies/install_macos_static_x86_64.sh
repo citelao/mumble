@@ -11,6 +11,8 @@ brew install coreutils aria2 gnu-tar xz
 
 make_build_env_available "tar.xz"
 
+install_webrtc_overlay "$MUMBLE_VCPKG_TRIPLET" "$GITHUB_WORKSPACE"
+
 
 # Setup PostgreSQL database for the Mumble tests
 # Note: we don't configure MySQL as that's not installed on the Azure runners for macOS
