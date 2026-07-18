@@ -16,7 +16,7 @@
 #include "GlobalShortcutButtons.h"
 
 #ifdef USE_WEBRTC_AUDIO_PROCESSING
-#include "WebRTC_Priv.h"
+#	include "WebRTC_Priv.h"
 #endif
 
 #include <QtGui/QMouseEvent>
@@ -668,7 +668,7 @@ void AudioWizard::on_qrWebRTC_toggled(bool on) {
 }
 
 void AudioWizard::on_qsWebRTCAggressiveness_valueChanged(int aggressiveness) {
-	Global::get().s.fVADWebRTCAggressiveness    = aggressiveness;
+	Global::get().s.fVADWebRTCAggressiveness = aggressiveness;
 	Global::get().ai->updateWebrtcAggressiveness(static_cast< webrtc::Vad::Aggressiveness >(aggressiveness));
 	updateVad();
 }

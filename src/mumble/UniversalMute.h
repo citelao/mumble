@@ -26,10 +26,10 @@ public:
 	UniversalMuter(std::function< void() > onMuted, std::function< void() > onUnmuted);
 	~UniversalMuter();
 
-	UniversalMuter(const UniversalMuter &)            = delete;
+	UniversalMuter(const UniversalMuter &) = delete;
 	UniversalMuter &operator=(const UniversalMuter &) = delete;
 	UniversalMuter(UniversalMuter &&)                 = delete;
-	UniversalMuter &operator=(UniversalMuter &&)      = delete;
+	UniversalMuter &operator=(UniversalMuter &&) = delete;
 
 	void setMuted();
 	void setUnmuted();
