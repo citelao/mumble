@@ -44,9 +44,9 @@ ComPtr< IVoipCallCoordinator > tryCreateCallCoordinator() {
 	}
 
 	ComPtr< IVoipCallCoordinatorStatics > statics;
-	HRESULT hr = RoGetActivationFactory(
-		HStringReference(RuntimeClass_Windows_ApplicationModel_Calls_VoipCallCoordinator).Get(),
-		IID_PPV_ARGS(&statics));
+	HRESULT hr =
+		RoGetActivationFactory(HStringReference(RuntimeClass_Windows_ApplicationModel_Calls_VoipCallCoordinator).Get(),
+							   IID_PPV_ARGS(&statics));
 	if (FAILED(hr)) {
 		return nullptr;
 	}
@@ -59,7 +59,7 @@ ComPtr< IVoipCallCoordinator > tryCreateCallCoordinator() {
 
 	return coordinator;
 }
-}
+} // namespace
 
 UniversalMuter::UniversalMuter(std::function< void() > onMuted, std::function< void() > onUnmuted)
 	: m_impl(std::make_shared< Impl >()) {
@@ -73,25 +73,25 @@ UniversalMuter::UniversalMuter(std::function< void() > onMuted, std::function< v
 	// Capture a weak_ptr so the callback safely no-ops if UniversalMuter is destroyed
 	// while a callback is in flight (e.g. racing with remove_MuteStateChanged).
 	std::weak_ptr< Impl > weakImpl = m_impl;
-	auto handler = Callback< ITypedEventHandler< VoipCallCoordinator *, MuteChangeEventArgs * > >(
-		[weakImpl](IVoipCallCoordinator *, IMuteChangeEventArgs *args) -> HRESULT {
-			auto impl = weakImpl.lock();
-			if (!impl)
-				return S_OK;
-			boolean muted = FALSE;
-			args->get_Muted(&muted);
+	auto handler                   = Callback< ITypedEventHandler< VoipCallCoordinator *, MuteChangeEventArgs * > >(
+        [weakImpl](IVoipCallCoordinator *, IMuteChangeEventArgs *args) -> HRESULT {
+            auto impl = weakImpl.lock();
+            if (!impl)
+                return S_OK;
+            boolean muted = FALSE;
+            args->get_Muted(&muted);
 
-			// The callbacks are responsible for calling setMuted/setUnmuted when they have
-			// processed the event.
-			if (muted) {
-				if (impl->onMuted)
-					impl->onMuted();
-			} else {
-				if (impl->onUnmuted)
-					impl->onUnmuted();
-			}
-			return S_OK;
-		});
+            // The callbacks are responsible for calling setMuted/setUnmuted when they have
+            // processed the event.
+            if (muted) {
+                if (impl->onMuted)
+                    impl->onMuted();
+            } else {
+                if (impl->onUnmuted)
+                    impl->onUnmuted();
+            }
+            return S_OK;
+        });
 
 	// Ignore failures; best effort.
 	m_impl->coordinator->add_MuteStateChanged(handler.Get(), &m_impl->muteStateToken);
@@ -115,8 +115,7 @@ void UniversalMuter::startCall(const std::wstring &contactName, const std::wstri
 
 	// RequestNewOutgoingCall may fail with E_ACCESSDENIED if the app lacks package identity.
 	// The coordinator and MuteStateChanged events remain active regardless.
-	HRESULT hr = m_impl->coordinator->RequestNewOutgoingCall(context.Get(), hContactName.Get(),
-															 hServiceName.Get(),
+	HRESULT hr = m_impl->coordinator->RequestNewOutgoingCall(context.Get(), hContactName.Get(), hServiceName.Get(),
 															 VoipPhoneCallMedia_Audio, &call);
 	if (SUCCEEDED(hr))
 		m_impl->call = call;

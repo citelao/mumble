@@ -676,7 +676,7 @@ void AudioInputDialog::on_qrbWebRTC_toggled(bool checked) {
 }
 
 void AudioInputDialog::on_qsWebRTCAggressiveness_valueChanged(int aggressiveness) {
-	AudioInputPtr ai              = Global::get().ai;
+	AudioInputPtr ai = Global::get().ai;
 	ai->updateWebrtcAggressiveness(static_cast< webrtc::Vad::Aggressiveness >(aggressiveness));
 	updateVad();
 }

@@ -521,16 +521,22 @@ void MainWindow::setupGui() {
 	m_universalMuter.emplace(
 		[this]() {
 			// Fired on a WinRT thread pool thread — marshal to Qt main thread.
-			QMetaObject::invokeMethod(this, [this]() {
-				qaAudioMute->setChecked(true);
-				on_qaAudioMute_triggered();
-			}, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(
+				this,
+				[this]() {
+					qaAudioMute->setChecked(true);
+					on_qaAudioMute_triggered();
+				},
+				Qt::QueuedConnection);
 		},
 		[this]() {
-			QMetaObject::invokeMethod(this, [this]() {
-				qaAudioMute->setChecked(false);
-				on_qaAudioMute_triggered();
-			}, Qt::QueuedConnection);
+			QMetaObject::invokeMethod(
+				this,
+				[this]() {
+					qaAudioMute->setChecked(false);
+					on_qaAudioMute_triggered();
+				},
+				Qt::QueuedConnection);
 		});
 #endif
 
