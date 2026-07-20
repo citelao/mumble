@@ -37,3 +37,6 @@
 [submodule "3rdparty/CLI11"]
 	path = 3rdparty/CLI11
 	url = https://github.com/CLIUtils/CLI11.git
+[submodule "packaging/flatpak/shared-modules"]
+	path = packaging/flatpak/shared-modules
+	url = https://github.com/flathub/shared-modules.git

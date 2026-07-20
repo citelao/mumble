@@ -1,0 +1,140 @@
+id: info.mumble.Mumble
+rename-icon: mumble
+runtime: org.kde.Platform
+# Mumble master requires Qt6; bump this alongside org.kde.Sdk if Flathub
+# retires this branch.
+runtime-version: '6.7'
+sdk: org.kde.Sdk
+command: mumble
+finish-args:
+  - --share=ipc
+  - --device=dri
+  # Game plugins
+  - --device=shm
+  - --require-version=1.6.1
+  # For ALSA (for attenuation)
+  - --device=all
+  - --share=network
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --own-name=net.sourceforge.mumble.mumble
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --filesystem=xdg-run/pipewire-0:ro
+  - --env=LD_LIBRARY_PATH=/app/lib/mumble/:/app/lib
+separate-locales: false
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /bin/protoc
+  - /bin/avahi-*
+  - /lib/*.a
+modules:
+  - shared-modules/intltool/intltool-0.51.json
+
+  - name: boost
+    sources:
+      - type: archive
+        url: https://github.com/boostorg/boost/releases/download/boost-1.90.0/boost-1.90.0-cmake.tar.xz
+        sha256: aca59f889f0f32028ad88ba6764582b63c916ce5f77b31289ad19421a96c555f
+        x-checker-data:
+          type: anitya
+          project-id: 6845
+          stable-only: true
+          url-template: https://github.com/boostorg/boost/releases/download/boost-$version/boost-$version-cmake.tar.xz
+    buildsystem: cmake-ninja
+
+  - name: protobuf
+    buildsystem: cmake-ninja
+    config-opts:
+      - -Dprotobuf_BUILD_TESTS=OFF
+    sources:
+      - type: archive
+        url: https://github.com/protocolbuffers/protobuf/releases/download/v34.0/protobuf-34.0.tar.gz
+        sha256: e540aae70d3b4f758846588768c9e39090fab880bc3233a1f42a8ab8d3781efd
+        x-checker-data:
+          type: anitya
+          project-id: 3715
+          stable-only: true
+          url-template: https://github.com/protocolbuffers/protobuf/releases/download/v$version/protobuf-$version.tar.gz
+
+  - name: avahi
+    buildsystem: autotools
+    config-opts:
+      - --disable-gtk
+      - --disable-qt3
+      - --disable-qt4
+      - --disable-qt5
+      - --disable-mono
+      - --disable-monodoc
+      - --with-distro=none
+      - --disable-pygobject
+      - --disable-python-dbus
+      - --disable-python
+      - --disable-manpages
+      - --disable-libdaemon
+      - --disable-daemon
+      - --enable-compat-libdns_sd
+      - --disable-libevent
+    sources:
+      - type: archive
+        url: https://github.com/lathiat/avahi/releases/download/v0.8/avahi-0.8.tar.gz
+        sha256: 060309d7a333d38d951bc27598c677af1796934dbd98e1024e7ad8de798fedda
+        x-checker-data:
+          type: anitya
+          project-id: 147
+          stable-only: true
+          url-template: https://github.com/lathiat/avahi/releases/download/v$version/avahi-$version.tar.gz
+
+  - name: utf8proc
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DBUILD_SHARED_LIBS=OFF
+      - -DUTF8PROC_INSTALL=ON
+      - -DUTF8PROC_ENABLE_TESTING=OFF
+    builddir: true
+    sources:
+      - type: git
+        url: https://github.com/JuliaStrings/utf8proc.git
+        tag: v2.11.3
+        commit: e5e799221b45bbb90f5fdc5c69b6b8dfbf017e78
+        x-checker-data:
+          type: git
+          tag-pattern: ^v([\d.]+)$
+
+  - name: poco
+    buildsystem: cmake-ninja
+    config-opts:
+      - -DPOCO_UNBUNDLED=ON
+    post-install:
+      # We link to utf8proc statically and the target is not found in pocos export
+      - sed -i 's,Utf8Proc::Utf8Proc;,,g' /app/lib/cmake/Poco/PocoFoundationTargets.cmake
+    sources:
+      - type: archive
+        url: https://github.com/pocoproject/poco/archive/poco-1.15.0-release.tar.gz
+        sha256: 5042931e043c127ee7eb7f5274c1aef9af77cb1f38247f6c8acdb6498104d0e3
+        x-checker-data:
+          type: anitya
+          project-id: 5418
+          stable-only: true
+          url-template: https://github.com/pocoproject/poco/archive/poco-$version-release.tar.gz
+    cleanup:
+      - /include/
+      - /bin/
+      - /lib/cmake/
+
+  - name: mumble
+    buildsystem: cmake-ninja
+    config-opts:
+      - -Dspeechd=OFF
+      - -Dserver=OFF
+      - -Doverlay=OFF
+      - -Dplugins=ON
+      - -Dwarnings-as-errors=OFF
+    sources:
+      # Build from the checked-out worktree so CI always packages the
+      # commit under test, instead of pinning a release tarball.
+      - type: dir
+        path: ../..
