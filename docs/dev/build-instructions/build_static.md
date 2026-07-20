@@ -65,6 +65,17 @@ package you want to install and `<triplet>` is the desired target triplet. We re
 
 Therefore if you are on Windows, you'd install `boost` as `vcpkg install boost --triplet x64-windows-static-md`.
 
+#### WebRTC (echo cancellation)
+
+The `webrtc` package used for this fork's echo cancellation feature isn't in our vcpkg fork yet
+(it was added to upstream vcpkg after our fork's last sync). Until the fork catches up, install it
+using the overlay port recipe in [`vcpkg-overlay-ports/`](../../../vcpkg-overlay-ports) at the root
+of this repository:
+
+```bash
+vcpkg install webrtc --overlay-ports=<path-to-mumble-repo>/vcpkg-overlay-ports --triplet <triplet>
+```
+
 
 ### Additional dependencies on Linux
 

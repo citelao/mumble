@@ -7,11 +7,13 @@ source "$( dirname "$0" )/common.sh"
 
 # All of these are already installed on the runner
 # choco install cmake ninja vswhere
-choco install aria2 7zip
+choco install aria2 7zip nasm
 
 verify_required_env_variables_set
 
 make_build_env_available "7z"
+
+install_webrtc_overlay "$MUMBLE_VCPKG_TRIPLET" "$GITHUB_WORKSPACE"
 
 aria2c "https://dl.mumble.info/build/extra/asio_sdk.zip" --out "asio_sdk.zip"
 extract_with_progress "asio_sdk.zip" "${GITHUB_WORKSPACE}/3rdparty/asio"

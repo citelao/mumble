@@ -1,0 +1,62 @@
+diff --git a/config/compiler/BUILD.gn b/config/compiler/BUILD.gn
+--- a/config/compiler/BUILD.gn
++++ b/config/compiler/BUILD.gn
+@@ -634,32 +634,39 @@
+ 
+     # TODO(hans): Remove this once Clang generates better optimized debug info
+     # by default. https://crbug.com/765793
+-    cflags += [
+-      "-mllvm",
+-      "-instcombine-lower-dbg-declare=0",
+-    ]
+-    if (!is_debug && use_thin_lto && is_a_target_toolchain) {
+-      if (is_win) {
+-        ldflags += [ "-mllvm:-instcombine-lower-dbg-declare=0" ]
+-      } else {
+-        ldflags += [ "-Wl,-mllvm,-instcombine-lower-dbg-declare=0" ]
+-      }
+-    }
+-
+-    # TODO(crbug.com/40283598): This causes binary size growth and potentially
+-    # other problems.
+-    if (default_toolchain != "//build/toolchain/cros:target") {
++    #
++    # vcpkg webrtc port: skipped on mac. These -mllvm flags are internal
++    # options only supported by Chromium's own prebuilt/patched clang; this
++    # port instead builds against the system Xcode clang there, which
++    # rejects them with "Unknown command line argument".
++    if (!is_mac) {
+       cflags += [
+         "-mllvm",
+-        "-split-threshold-for-reg-with-hint=0",
++        "-instcombine-lower-dbg-declare=0",
+       ]
+-      if (use_thin_lto && is_a_target_toolchain) {
++      if (!is_debug && use_thin_lto && is_a_target_toolchain) {
+         if (is_win) {
+-          ldflags += [ "-mllvm:-split-threshold-for-reg-with-hint=0" ]
++          ldflags += [ "-mllvm:-instcombine-lower-dbg-declare=0" ]
+         } else {
+-          ldflags += [ "-Wl,-mllvm,-split-threshold-for-reg-with-hint=0" ]
++          ldflags += [ "-Wl,-mllvm,-instcombine-lower-dbg-declare=0" ]
+         }
+       }
++
++      # TODO(crbug.com/40283598): This causes binary size growth and potentially
++      # other problems.
++      if (default_toolchain != "//build/toolchain/cros:target") {
++        cflags += [
++          "-mllvm",
++          "-split-threshold-for-reg-with-hint=0",
++        ]
++        if (use_thin_lto && is_a_target_toolchain) {
++          if (is_win) {
++            ldflags += [ "-mllvm:-split-threshold-for-reg-with-hint=0" ]
++          } else {
++            ldflags += [ "-Wl,-mllvm,-split-threshold-for-reg-with-hint=0" ]
++          }
++        }
++      }
+     }
+ 
+     # TODO(crbug.com/40192287): Investigate why/if this should be needed.

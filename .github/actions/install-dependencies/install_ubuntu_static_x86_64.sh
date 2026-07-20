@@ -11,6 +11,8 @@ sudo apt -y install \
 	build-essential \
 	g++-multilib \
 	ninja-build \
+	`# Required by the webrtc vcpkg port's aom dependency` \
+	nasm \
 	`# Still required for qtbase vcpkg package` \
 	'^libxcb.*-dev' libx11-xcb-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-dev libxkbcommon-x11-dev libegl1-mesa-dev \
 	`# TODO: can we get rid of these by replacing with vcpkg packages?` \
@@ -22,6 +24,8 @@ sudo apt -y install \
 verify_required_env_variables_set
 
 make_build_env_available "tar.xz"
+
+install_webrtc_overlay "$MUMBLE_VCPKG_TRIPLET" "$GITHUB_WORKSPACE"
 
 # MySQL and PostgreSQL are pre-installed on GitHub-hosted runners.
 # Set them up for the Mumble tests

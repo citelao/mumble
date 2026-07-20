@@ -958,7 +958,7 @@ void AudioInput::encodeAudioFrame(AudioChunk chunk) {
 		case Settings::WebRTC:
 #ifdef USE_WEBRTC_AUDIO_PROCESSING
 		{
-			auto webrtcVad = m_vadWebrtc.load();
+			auto webrtcVad = loadWebrtcVad();
 
 			if (!webrtcVad) {
 				break;
@@ -1283,9 +1283,9 @@ void AudioInput::updateVad(Settings::VADSource src) {
 		if (!u) {
 			qWarning() << "AudioInput: Failed to initialize WebRTC VAD, disabled";
 		}
-		m_vadWebrtc.store(std::move(u));
+		storeWebrtcVad(std::move(u));
 	} else {
-		m_vadWebrtc.store(nullptr);
+		storeWebrtcVad(nullptr);
 	}
 #endif
 	m_vad.store(src);
@@ -1294,12 +1294,12 @@ void AudioInput::updateVad(Settings::VADSource src) {
 #ifdef USE_WEBRTC_AUDIO_PROCESSING
 void AudioInput::updateWebrtcAggressiveness(webrtc::Vad::Aggressiveness aggressiveness) {
 	m_vadWebrtcAggressiveness = aggressiveness;
-	if (m_vad.load() == Settings::WebRTC && m_vadWebrtc.load()) {
+	if (m_vad.load() == Settings::WebRTC && loadWebrtcVad()) {
 		auto u = webrtc::CreateVad(m_vadWebrtcAggressiveness);
 		if (!u) {
 			qWarning() << "AudioInput: Failed to initialize WebRTC VAD, disabled";
 		}
-		m_vadWebrtc.store(std::move(u));
+		storeWebrtcVad(std::move(u));
 	}
 }
 #endif
