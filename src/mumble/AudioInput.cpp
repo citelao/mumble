@@ -321,6 +321,10 @@ AudioInput::~AudioInput() {
 	if (sesEcho)
 		speex_echo_state_destroy(sesEcho);
 
+#ifdef USE_WEBRTC_APM
+	m_apm = nullptr;
+#endif
+
 	if (srsMic)
 		speex_resampler_destroy(srsMic);
 	if (srsEcho)
@@ -609,7 +613,19 @@ void AudioInput::addMic(const void *data, unsigned int nsamp) {
 
 			// If we have echo cancellation enabled...
 			if (iEchoChannels > 0) {
-				resync.addMic(psMic);
+#ifdef USE_WEBRTC_APM
+				// WebRTC path: render stream was already fed in addEcho(), process capture directly.
+				if (m_apm) {
+					encodeAudioFrame(AudioChunk(psMic));
+					// psMic is heap-allocated because iEchoChannels > 0 (see above).
+					// The Speex path hands it to the Resynchronizer which owns and frees it;
+					// the WebRTC path bypasses the Resynchronizer, so we free it here.
+					delete[] psMic;
+				} else
+#endif
+				{
+					resync.addMic(psMic);
+				}
 			} else {
 				encodeAudioFrame(AudioChunk(psMic));
 			}
@@ -664,6 +680,21 @@ void AudioInput::addEcho(const void *data, unsigned int nsamp) {
 				spx_uint32_t outlen = iFrameSize;
 				speex_resampler_process_interleaved_float(srsEcho, pfEchoInput, &inlen, pfOutput, &outlen);
 			}
+
+#ifdef USE_WEBRTC_APM
+			// WebRTC path: feed the render (speaker) stream directly to the Audio Processing Module (APM).
+			// The capture (mic) side calls encodeAudioFrame() from addMic() to complete the AEC loop.
+			// Hold qmSpeex briefly to guard against m_apm being reset concurrently in resetAudioProcessor().
+			{
+				QMutexLocker l(&qmSpeex);
+				if (m_apm) {
+					float *renderPtr = ptr;
+					webrtc::StreamConfig cfg(iSampleRate, 1);
+					m_apm->ProcessReverseStream(&renderPtr, cfg, cfg, &renderPtr);
+					continue;
+				}
+			}
+#endif
 
 			short *outbuff = new short[iEchoFrameSize];
 
@@ -760,6 +791,11 @@ void AudioInput::resetAudioProcessor() {
 
 	if (sesEcho)
 		speex_echo_state_destroy(sesEcho);
+	sesEcho = nullptr; // Null immediately after destroy to prevent a dangling pointer on re-entry.
+
+#ifdef USE_WEBRTC_APM
+	m_apm = nullptr;
+#endif
 
 	m_preprocessor.init(iSampleRate, iFrameSize);
 	resync.reset();
@@ -780,16 +816,28 @@ void AudioInput::resetAudioProcessor() {
 	}
 
 	if (iEchoChannels > 0) {
-		int filterSize = iFrameSize * (10 + resync.getNominalLag());
-		sesEcho =
-			speex_echo_state_init_mc(iFrameSize, filterSize, 1, bEchoMulti ? static_cast< int >(iEchoChannels) : 1);
-		int iArg = iSampleRate;
-		speex_echo_ctl(sesEcho, SPEEX_ECHO_SET_SAMPLING_RATE, &iArg);
-		m_preprocessor.setEchoState(sesEcho);
+#ifdef USE_WEBRTC_APM
+		if (Global::get().s.echoOption == EchoCancelOptionID::WEBRTC_AEC) {
+			webrtc::AudioProcessing::Config cfg;
+			cfg.echo_canceller.enabled = true;
+			m_apm = webrtc::BuiltinAudioProcessingBuilder().SetConfig(cfg).Build(webrtc::CreateEnvironment());
+			if (m_apm) {
+				qWarning("AudioInput: WebRTC AEC3 ACTIVE");
+			} else {
+				qWarning("AudioInput: Failed to create WebRTC APM, echo cancellation disabled");
+			}
+		} else
+#endif
+		{
+			int filterSize = iFrameSize * (10 + resync.getNominalLag());
+			sesEcho =
+				speex_echo_state_init_mc(iFrameSize, filterSize, 1, bEchoMulti ? static_cast< int >(iEchoChannels) : 1);
+			int iArg = iSampleRate;
+			speex_echo_ctl(sesEcho, SPEEX_ECHO_SET_SAMPLING_RATE, &iArg);
+			m_preprocessor.setEchoState(sesEcho);
 
-		qWarning("AudioInput: ECHO CANCELLER ACTIVE");
-	} else {
-		sesEcho = nullptr;
+			qWarning("AudioInput: ECHO CANCELLER ACTIVE");
+		}
 	}
 
 	bResetEncoder = true;
@@ -911,7 +959,23 @@ void AudioInput::encodeAudioFrame(AudioChunk chunk) {
 	}
 
 	short psClean[iFrameSize];
-	if (sesEcho && chunk.speaker) {
+#ifdef USE_WEBRTC_APM
+	if (m_apm) {
+		// WebRTC APM works in float [-1.0, 1.0]; convert to/from int16 PCM [-32768, 32767].
+		static constexpr float kInt16Scale = 32768.f;
+		float floatBuf[iFrameSize];
+		for (int i = 0; i < iFrameSize; ++i)
+			floatBuf[i] = chunk.mic[i] / kInt16Scale;
+		float *floatPtr = floatBuf;
+		webrtc::StreamConfig cfg(iSampleRate, 1);
+		m_apm->set_stream_delay_ms(Global::get().iOutputLatencyMs.load());
+		m_apm->ProcessStream(&floatPtr, cfg, cfg, &floatPtr);
+		for (int i = 0; i < iFrameSize; ++i)
+			psClean[i] = static_cast< short >(qBound(-kInt16Scale, floatBuf[i] * kInt16Scale, kInt16Scale - 1.f));
+		psSource = psClean;
+	} else
+#endif
+		if (sesEcho && chunk.speaker) {
 		speex_echo_cancellation(sesEcho, chunk.mic, chunk.speaker, psClean);
 		psSource = psClean;
 	} else {
