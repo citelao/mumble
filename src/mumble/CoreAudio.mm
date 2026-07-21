@@ -6,6 +6,10 @@
 #include <AVFoundation/AVFoundation.h>
 #include <IOKit/audio/IOAudioTypes.h>
 #include <CoreAudio/AudioHardware.h>
+#ifdef USE_WEBRTC_APM
+#	include <CoreAudio/AudioHardwareTapping.h>
+#	include <CoreAudio/CATapDescription.h>
+#endif
 #include "MainWindow.h"
 #include "Global.h"
 
@@ -462,6 +466,11 @@ const QHash< QString, QString > CoreAudioSystem::getDevices(bool input, bool ech
 
 CoreAudioInputRegistrar::CoreAudioInputRegistrar() : AudioInputRegistrar(QLatin1String("CoreAudio"), 10) {
 	echoOptions.push_back(EchoCancelOptionID::APPLE_AEC);
+#ifdef USE_WEBRTC_APM
+	// macOS has no system loopback capture, so WebRTC AEC uses Mumble's own rendered
+	// output (see CoreAudioOutput::outputCallback) as the echo reference.
+	echoOptions.push_back(EchoCancelOptionID::WEBRTC_AEC);
+#endif
 }
 
 AudioInput *CoreAudioInputRegistrar::create() {
@@ -490,6 +499,9 @@ bool CoreAudioInputRegistrar::canEcho(EchoCancelOptionID echoCancelID, const QSt
 	if (@available(macOS 10.14, *)) {
 		if (echoCancelID == EchoCancelOptionID::APPLE_AEC) return true;
 	}
+#ifdef USE_WEBRTC_APM
+	if (echoCancelID == EchoCancelOptionID::WEBRTC_AEC) return true;
+#endif
 	return false;
 }
 
@@ -728,6 +740,158 @@ bool CoreAudioInput::initializeInputAU(AudioUnit au, AudioStreamBasicDescription
 	return true;
 }
 
+#ifdef USE_WEBRTC_APM
+std::atomic< bool > CoreAudioInput::sm_systemTapActive{ false };
+
+OSStatus CoreAudioInput::echoTapIOProc(AudioObjectID, const AudioTimeStamp *, const AudioBufferList *inInputData,
+									   const AudioTimeStamp *, AudioBufferList *, const AudioTimeStamp *,
+									   void *inClientData) {
+	CoreAudioInput *i = reinterpret_cast< CoreAudioInput * >(inClientData);
+	if (!i || !inInputData || inInputData->mNumberBuffers == 0) {
+		return noErr;
+	}
+
+	const AudioBuffer &buf = inInputData->mBuffers[0];
+	if (!buf.mData || buf.mDataByteSize == 0) {
+		return noErr;
+	}
+
+	// The tap is created mono float32, so a single interleaved-irrelevant channel arrives here.
+	const float *in      = static_cast< const float * >(buf.mData);
+	unsigned int nframes = buf.mDataByteSize / sizeof(float);
+
+	if (i->m_echoTapFreq == SAMPLE_RATE || i->m_echoTapFreq == 0) {
+		i->addEchoReference(in, nframes);
+		return noErr;
+	}
+
+	if (!i->m_echoTapResampler) {
+		int err               = 0;
+		i->m_echoTapResampler = speex_resampler_init(1, i->m_echoTapFreq, SAMPLE_RATE, 3, &err);
+		if (!i->m_echoTapResampler) {
+			return noErr;
+		}
+	}
+
+	spx_uint32_t inlen = nframes;
+	spx_uint32_t outlen =
+		static_cast< spx_uint32_t >((static_cast< uint64_t >(nframes) * SAMPLE_RATE) / i->m_echoTapFreq) + 16;
+	float *out = static_cast< float * >(alloca(outlen * sizeof(float)));
+	speex_resampler_process_float(i->m_echoTapResampler, 0, in, &inlen, out, &outlen);
+	if (outlen > 0) {
+		i->addEchoReference(out, outlen);
+	}
+	return noErr;
+}
+
+bool CoreAudioInput::startSystemAudioTap() {
+	if (@available(macOS 14.2, *)) {
+		@autoreleasepool {
+			// Mono, private, global tap of all process output. Unmuted so playback is unaffected;
+			// this is the full speaker mix the microphone actually picks up.
+			CATapDescription *desc = [[[CATapDescription alloc] initMonoGlobalTapButExcludeProcesses:@[]] autorelease];
+			if (!desc) {
+				return false;
+			}
+			desc.name = @"Mumble WebRTC AEC reference";
+			desc.UUID = [NSUUID UUID];
+			[desc setPrivate:YES];
+
+			OSStatus err = AudioHardwareCreateProcessTap(desc, &m_echoTapID);
+			if (err != noErr || m_echoTapID == kAudioObjectUnknown) {
+				qWarning("CoreAudioInput: AudioHardwareCreateProcessTap failed (%d); WebRTC AEC falls back to "
+						 "Mumble's own output as the echo reference.",
+						 static_cast< int >(err));
+				m_echoTapID = 0;
+				return false;
+			}
+
+			CFStringRef tapUID                 = nullptr;
+			UInt32 sz                          = sizeof(tapUID);
+			AudioObjectPropertyAddress uidAddr = { kAudioTapPropertyUID, kAudioObjectPropertyScopeGlobal,
+												   kAudioObjectPropertyElementMain };
+			if (AudioObjectGetPropertyData(m_echoTapID, &uidAddr, 0, nullptr, &sz, &tapUID) != noErr || !tapUID) {
+				stopSystemAudioTap();
+				return false;
+			}
+
+			AudioStreamBasicDescription tapFmt = {};
+			sz                                 = sizeof(tapFmt);
+			AudioObjectPropertyAddress fmtAddr = { kAudioTapPropertyFormat, kAudioObjectPropertyScopeGlobal,
+												   kAudioObjectPropertyElementMain };
+			if (AudioObjectGetPropertyData(m_echoTapID, &fmtAddr, 0, nullptr, &sz, &tapFmt) == noErr
+				&& tapFmt.mSampleRate > 0) {
+				m_echoTapFreq = static_cast< unsigned int >(tapFmt.mSampleRate);
+			} else {
+				m_echoTapFreq = SAMPLE_RATE;
+			}
+
+			NSDictionary *aggDesc = @{
+				@(kAudioAggregateDeviceNameKey) : @"Mumble AEC Tap",
+				@(kAudioAggregateDeviceUIDKey) : [[NSUUID UUID] UUIDString],
+				@(kAudioAggregateDeviceIsPrivateKey) : @YES,
+				@(kAudioAggregateDeviceTapAutoStartKey) : @YES,
+				@(kAudioAggregateDeviceTapListKey) : @[ @{
+					@(kAudioSubTapUIDKey) : (__bridge NSString *) tapUID,
+					@(kAudioSubTapDriftCompensationKey) : @YES,
+				} ],
+			};
+			CFRelease(tapUID);
+
+			err = AudioHardwareCreateAggregateDevice((__bridge CFDictionaryRef) aggDesc, &m_echoAggregateID);
+			if (err != noErr || m_echoAggregateID == kAudioObjectUnknown) {
+				qWarning("CoreAudioInput: Unable to create aggregate device for system audio tap (%d).",
+						 static_cast< int >(err));
+				m_echoAggregateID = 0;
+				stopSystemAudioTap();
+				return false;
+			}
+
+			err = AudioDeviceCreateIOProcID(m_echoAggregateID, &CoreAudioInput::echoTapIOProc, this, &m_echoIOProcID);
+			if (err != noErr || !m_echoIOProcID) {
+				stopSystemAudioTap();
+				return false;
+			}
+
+			err = AudioDeviceStart(m_echoAggregateID, m_echoIOProcID);
+			if (err != noErr) {
+				stopSystemAudioTap();
+				return false;
+			}
+
+			sm_systemTapActive = true;
+			qWarning("CoreAudioInput: System audio tap active for WebRTC AEC (tap rate %u Hz).", m_echoTapFreq);
+			return true;
+		}
+	}
+	return false;
+}
+
+void CoreAudioInput::stopSystemAudioTap() {
+	sm_systemTapActive = false;
+	if (@available(macOS 14.2, *)) {
+		if (m_echoAggregateID) {
+			if (m_echoIOProcID) {
+				AudioDeviceStop(m_echoAggregateID, m_echoIOProcID);
+				AudioDeviceDestroyIOProcID(m_echoAggregateID, m_echoIOProcID);
+				m_echoIOProcID = nullptr;
+			}
+			AudioHardwareDestroyAggregateDevice(m_echoAggregateID);
+			m_echoAggregateID = 0;
+		}
+		if (m_echoTapID) {
+			AudioHardwareDestroyProcessTap(m_echoTapID);
+			m_echoTapID = 0;
+		}
+	}
+	if (m_echoTapResampler) {
+		speex_resampler_destroy(m_echoTapResampler);
+		m_echoTapResampler = nullptr;
+	}
+	m_echoTapFreq = 0;
+}
+#endif
+
 void CoreAudioInput::run() {
 	OSStatus err;
 	UInt32 len;
@@ -777,6 +941,20 @@ void CoreAudioInput::run() {
 
 	iMicFreq     = static_cast<unsigned int>(fmt.mSampleRate);
 	iMicChannels = 1;
+
+#ifdef USE_WEBRTC_APM
+	// For WebRTC AEC we keep the raw HAL microphone (no VoiceProcessingIO) and take the echo
+	// reference from Mumble's own rendered output, which CoreAudioOutput downmixes/resamples to
+	// a canonical mono stream at our sample rate. Declaring the echo stream here makes the base
+	// class allocate the echo buffers and run the APM's reverse (render) path.
+	if (Global::get().s.echoOption == EchoCancelOptionID::WEBRTC_AEC) {
+		iEchoChannels = 1;
+		iEchoFreq     = iSampleRate;
+		eEchoFormat   = SampleFloat;
+		bEchoMulti    = false;
+	}
+#endif
+
 	initializeMixer();
 
 	if (eMicFormat == SampleFloat) {
@@ -846,11 +1024,24 @@ void CoreAudioInput::run() {
 		UndoDucking(echoOutputDevId);
 	}
 
+#ifdef USE_WEBRTC_APM
+	// Prefer a system-wide audio tap (cancels echo from every app). If it can't be created
+	// (older macOS, or capture permission unavailable), CoreAudioOutput feeds its own rendered
+	// mix as a fallback reference, which still cancels the call audio.
+	if (Global::get().s.echoOption == EchoCancelOptionID::WEBRTC_AEC) {
+		startSystemAudioTap();
+	}
+#endif
+
 	bRunning = true;
 }
 
 void CoreAudioInput::stop() {
 	bRunning = false;
+
+#ifdef USE_WEBRTC_APM
+	stopSystemAudioTap();
+#endif
 
 	if (auHAL) {
 		CHECK_WARN(AudioOutputUnitStop(auHAL),
@@ -1090,6 +1281,13 @@ void CoreAudioOutput::stop() {
 		auHAL = nullptr;
 	}
 
+#ifdef USE_WEBRTC_APM
+	if (srsEcho) {
+		speex_resampler_destroy(srsEcho);
+		srsEcho = nullptr;
+	}
+#endif
+
 	qWarning("CoreAudioOutput: Shutting down.");
 }
 
@@ -1115,12 +1313,69 @@ OSStatus CoreAudioOutput::outputCallback(void *udata, AudioUnitRenderActionFlags
 			buf->mDataByteSize = 0;
 			return -1;
 		}
+#ifdef USE_WEBRTC_APM
+		// Fallback echo reference: only feed our own rendered mix when the system-wide audio tap
+		// (which already includes our output plus every other app) isn't running.
+		if (Global::get().s.echoOption == EchoCancelOptionID::WEBRTC_AEC && !CoreAudioInput::sm_systemTapActive) {
+			o->feedWebrtcEchoReference(buf->mData, nframes);
+		}
+#endif
 	} else {
 		buf->mDataByteSize = 0;
 	}
 
 	return noErr;
 }
+
+#ifdef USE_WEBRTC_APM
+void CoreAudioOutput::feedWebrtcEchoReference(const void *mixData, unsigned int nframes) {
+	AudioInputPtr ai = Global::get().ai;
+	if (!ai || nframes == 0 || iChannels == 0) {
+		return;
+	}
+
+	// Downmix the interleaved mix to mono. mix() renders in eSampleFormat (float or 16-bit PCM).
+	float *mono = static_cast< float * >(alloca(nframes * sizeof(float)));
+	if (eSampleFormat == SampleFloat) {
+		const float *in = static_cast< const float * >(mixData);
+		for (unsigned int f = 0; f < nframes; ++f) {
+			float acc = 0.0f;
+			for (unsigned int c = 0; c < iChannels; ++c)
+				acc += in[f * iChannels + c];
+			mono[f] = acc / static_cast< float >(iChannels);
+		}
+	} else {
+		const short *in = static_cast< const short * >(mixData);
+		for (unsigned int f = 0; f < nframes; ++f) {
+			float acc = 0.0f;
+			for (unsigned int c = 0; c < iChannels; ++c)
+				acc += static_cast< float >(in[f * iChannels + c]) * (1.0f / 32768.f);
+			mono[f] = acc / static_cast< float >(iChannels);
+		}
+	}
+
+	// The input declares its echo reference at SAMPLE_RATE; resample if the device runs elsewhere.
+	if (iMixerFreq == SAMPLE_RATE) {
+		ai->addEchoReference(mono, nframes);
+		return;
+	}
+
+	if (!srsEcho) {
+		int err   = 0;
+		srsEcho   = speex_resampler_init(1, iMixerFreq, SAMPLE_RATE, 3, &err);
+		if (!srsEcho)
+			return;
+	}
+
+	// Generously size the output for upsampling (ceil ratio) plus a little slack.
+	spx_uint32_t inlen  = nframes;
+	spx_uint32_t outlen = static_cast< spx_uint32_t >((static_cast< uint64_t >(nframes) * SAMPLE_RATE) / iMixerFreq) + 16;
+	float *out          = static_cast< float * >(alloca(outlen * sizeof(float)));
+	speex_resampler_process_float(srsEcho, 0, mono, &inlen, out, &outlen);
+	if (outlen > 0)
+		ai->addEchoReference(out, outlen);
+}
+#endif
 
 void CoreAudioOutput::propertyChange(void *udata, AudioUnit auHAL, AudioUnitPropertyID prop, AudioUnitScope scope,
                                      AudioUnitElement element) {

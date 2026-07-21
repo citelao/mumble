@@ -364,6 +364,15 @@ public:
 
 	void updateUserMuteDeafState(const ClientUser *user);
 
+	/// Feed an echo/render reference frame from an external source (e.g. the audio output's own
+	/// rendered mix on platforms without a system loopback capture, such as macOS CoreAudio).
+	/// The data must match the echo stream format the backend declared (iEchoChannels / iEchoFreq
+	/// / eEchoFormat). No-op if the backend did not set up an echo stream.
+	void addEchoReference(const void *data, unsigned int nsamp) {
+		if (iEchoChannels > 0)
+			addEcho(data, nsamp);
+	}
+
 protected:
 	virtual void onUserMutedChanged();
 
