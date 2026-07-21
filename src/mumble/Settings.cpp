@@ -275,7 +275,11 @@ void Settings::load(const QString &path, bool skipSettingsBackupPrompt) {
 				msgBox.exec();
 			}
 		}
-	} catch (const nlohmann::json::parse_error &e) {
+	} catch (const std::exception &e) {
+		// Covers nlohmann::json::parse_error (malformed JSON), nlohmann::json::type_error / stringToEnum's
+		// std::invalid_argument (settings file contains values this build doesn't understand, e.g. from a
+		// newer or differently-configured Mumble build), and any other deserialization failure. None of these
+		// should be able to crash the whole application - we'd rather fall back to defaults/backup settings.
 		qWarning() << "Failed to load settings from" << path << "due to invalid format: " << e.what();
 
 		if (!path.endsWith(QLatin1String(BACKUP_FILE_EXTENSION)) && QFileInfo(path + BACKUP_FILE_EXTENSION).exists()) {
@@ -627,7 +631,7 @@ void OverlaySettings::load(const QString &filename) {
 		stream >> settingsJSON;
 
 		settingsJSON.get_to(*this);
-	} catch (const nlohmann::json::parse_error &e) {
+	} catch (const std::exception &e) {
 		qWarning() << "Failed to load overlay settings due to invalid format: " << e.what();
 	}
 }

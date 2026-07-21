@@ -5,6 +5,8 @@
 
 #include "EnumStringConversions.h"
 
+#include <stdexcept>
+
 #define AUDIO_TRANSMIT_VALUES                                  \
 	PROCESS(Settings::AudioTransmit, Continuous, "Continuous") \
 	PROCESS(Settings::AudioTransmit, VAD, "VAD")               \
@@ -231,9 +233,9 @@
 #define BEFORE_CODE(enumType)              \
 	const char *enumToString(enumType e) { \
 		switch (e) {
-#define AFTER_CODE                                \
-	}                                             \
-	throw "This code part should be unreachable"; \
+#define AFTER_CODE                                                  \
+	}                                                               \
+	throw std::logic_error("This code part should be unreachable"); \
 	}
 #define PROCESS(enumType, enumValue, stringValue) \
 	case enumType::enumValue:                     \
@@ -246,8 +248,8 @@ PROCESS_ALL_ENUMS
 #undef PROCESS
 
 #define BEFORE_CODE(enumType) void stringToEnum(const std::string &str, enumType &e) {
-#define AFTER_CODE                                           \
-	{ throw "Unable to convert given string to enum type"; } \
+#define AFTER_CODE                                                                            \
+	{ throw std::invalid_argument("Unable to convert string \"" + str + "\" to enum type"); } \
 	}
 #define PROCESS(enumType, enumValue, stringValue) \
 	if (str == stringValue) {                     \
