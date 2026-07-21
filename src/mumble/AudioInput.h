@@ -22,6 +22,20 @@
 #include <speex/speex_echo.h>
 #include <speex/speex_resampler.h>
 
+#ifdef USE_WEBRTC_APM
+#	ifdef _MSC_VER
+// webrtc-audio-processing headers emit warnings we can't fix (third-party code).
+#		pragma warning(push, 0)
+#	endif
+#	include <api/audio/builtin_audio_processing_builder.h>
+#	include <api/environment/environment_factory.h>
+#	include <api/scoped_refptr.h>
+#	include <modules/audio_processing/include/audio_processing.h>
+#	ifdef _MSC_VER
+#		pragma warning(pop)
+#	endif
+#endif
+
 #include "Audio.h"
 #include "AudioOutputToken.h"
 #include "AudioPreprocessor.h"
@@ -230,6 +244,9 @@ protected:
 	QMutex qmSpeex;
 	AudioPreprocessor m_preprocessor;
 	SpeexEchoState *sesEcho;
+#ifdef USE_WEBRTC_APM
+	webrtc::scoped_refptr< webrtc::AudioProcessing > m_apm;
+#endif
 
 	std::atomic< Settings::VADSource > m_vad;
 

@@ -24,7 +24,7 @@ option(bundled-speex "Build the included version of Speex instead of looking for
 option(rnnoise "Use RNNoise for machine learning noise reduction." ON)
 option(bundled-rnnoise "Build the included version of RNNoise instead of looking for one on the system." ${rnnoise})
 
-option(webrtc-audio-processing "Use WebRTC audio processing for various dsp features." OFF)
+option(webrtc-audio-processing "Use WebRTC audio processing (VAD and AEC3 echo cancellation)." OFF)
 
 option(manual-plugin "Include the built-in \"manual\" positional audio plugin." ON)
 
@@ -847,10 +847,15 @@ endif()
 if(webrtc-audio-processing)
 	find_pkg(unofficial-webrtc REQUIRED)
 
+	# The full WebRTC library provides both the VAD (USE_WEBRTC_AUDIO_PROCESSING) and the
+	# AudioProcessing/AEC3 echo canceller (USE_WEBRTC_APM). The unofficial::webrtc::webrtc target
+	# carries the include dir (so <modules/audio_processing/include/audio_processing.h> resolves)
+	# and the platform compile definitions, so both features build against the same dependency.
 	target_compile_definitions(
 		mumble_client_object_lib
 		PUBLIC
 			USE_WEBRTC_AUDIO_PROCESSING
+			USE_WEBRTC_APM
 	)
 
 	target_link_libraries(
