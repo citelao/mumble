@@ -50,7 +50,30 @@ protected:
 	static OSStatus inputCallback(void *udata, AudioUnitRenderActionFlags *flags, const AudioTimeStamp *ts,
 								  UInt32 busnum, UInt32 npackets, AudioBufferList *buflist);
 
+#	ifdef USE_WEBRTC_APM
+	// System-audio capture via a Core Audio process tap (macOS 14.2+), used as the WebRTC AEC
+	// echo reference so echo from ALL applications' output is cancelled — not just Mumble's.
+	// A private, mono, global tap is wrapped in a private aggregate device whose IOProc feeds the
+	// captured audio to AudioInput::addEchoReference().
+	AudioObjectID m_echoTapID{};
+	AudioDeviceID m_echoAggregateID{};
+	AudioDeviceIOProcID m_echoIOProcID{};
+	SpeexResamplerState *m_echoTapResampler{};
+	unsigned int m_echoTapFreq{};
+	bool startSystemAudioTap();
+	void stopSystemAudioTap();
+	static OSStatus echoTapIOProc(AudioObjectID inDevice, const AudioTimeStamp *inNow,
+								  const AudioBufferList *inInputData, const AudioTimeStamp *inInputTime,
+								  AudioBufferList *outOutputData, const AudioTimeStamp *inOutputTime,
+								  void *inClientData);
+#	endif
+
 public:
+#	ifdef USE_WEBRTC_APM
+	/// Set while the process tap is delivering audio, so CoreAudioOutput knows not to also feed
+	/// its own render (which the tap already includes) as a fallback reference.
+	static std::atomic< bool > sm_systemTapActive;
+#	endif
 	CoreAudioInput();
 	~CoreAudioInput() Q_DECL_OVERRIDE;
 	void run() Q_DECL_OVERRIDE;
@@ -70,6 +93,15 @@ protected:
 								 const AudioObjectPropertyAddress inAddresses[], void *udata);
 	static OSStatus outputCallback(void *udata, AudioUnitRenderActionFlags *flags, const AudioTimeStamp *ts,
 								   UInt32 busnum, UInt32 npackets, AudioBufferList *buflist);
+
+#	ifdef USE_WEBRTC_APM
+	/// Resampler used to convert the rendered mix to Mumble's sample rate for the WebRTC AEC
+	/// echo reference (only allocated when the output device runs at a different rate).
+	SpeexResamplerState *srsEcho{};
+	/// Downmix the just-rendered mix to a canonical mono stream at Mumble's sample rate and feed
+	/// it to the active AudioInput as the WebRTC AEC echo reference. Called from outputCallback.
+	void feedWebrtcEchoReference(const void *mixData, unsigned int nframes);
+#	endif
 
 public:
 	CoreAudioOutput();
