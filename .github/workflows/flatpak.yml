@@ -1,0 +1,32 @@
+
+name: Flatpak
+
+on:
+  push:
+    branches: '*'
+    paths:
+      - 'packaging/flatpak/**'
+      - '.github/workflows/flatpak.yml'
+  pull_request:
+    branches: '*'
+    paths:
+      - 'packaging/flatpak/**'
+      - '.github/workflows/flatpak.yml'
+
+jobs:
+  build:
+    name: Build Flatpak
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:kde-6.7
+      options: --privileged
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        fetch-depth: 1
+        submodules: 'recursive'
+    - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+      with:
+        bundle: mumble.flatpak
+        manifest-path: packaging/flatpak/info.mumble.Mumble.yml
+        cache-key: flatpak-builder-${{ github.sha }}
